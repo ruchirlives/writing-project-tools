@@ -1,0 +1,17 @@
+[project]
+name = "writing-project-tools"
+version = "0.1.0"
+description = "Reusable document generation and assertions review tools for writing projects."
+requires-python = ">=3.11"
+dependencies = [
+    "python-docx>=1.1.2",
+]
+
+[project.scripts]
+create-writing-docs = "writing_project_tools.create_docs:main"
+edit-assertions = "writing_project_tools.assertions_editor:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
