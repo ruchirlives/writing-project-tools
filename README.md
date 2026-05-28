@@ -72,7 +72,7 @@ create-writing-docs
 
 Generated `.docx` files are written to `docs/` unless a different output path is set in `docx_sources.csv`.
 
-## Assertions Review
+## Project Editor
 
 Create an `assertions.csv` with these columns:
 
@@ -86,13 +86,21 @@ Run:
 edit-assertions
 ```
 
-The editor opens at:
+The editor opens the assertions review page at:
 
 ```text
 http://127.0.0.1:8765/
 ```
 
 Tick or untick assertions, optionally add revised wording in `user_edit`, and click `Save CSV`.
+
+The same server also includes a Markdown editor:
+
+```text
+http://127.0.0.1:8765/markdown
+```
+
+Use it to select, preview, edit and save project `.md` files without leaving the browser UI. The Markdown editor only serves and saves `.md` files inside the project folder.
 
 ## Notes
 
