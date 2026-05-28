@@ -35,6 +35,25 @@ python E:\CODINGPROJECTS\Sandboxes\writing-project-tools\scaffold_article.py E:\
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
+## Work In Google Colab
+
+Use the Colab template when you want to scaffold and work on a writing project in a Colab runtime instead of a local folder:
+
+```text
+colab/writing_project_tools_colab_template.ipynb
+```
+
+Upload that notebook to Google Colab, then run the cells in order. The notebook:
+
+- clones this toolkit from GitHub
+- installs it in editable mode
+- optionally mounts Google Drive for persistent project files
+- scaffolds a writing project folder
+- generates Word `.docx` files from Markdown sources
+- provides a Colab-compatible proxy link for the assertions editor
+
+By default, Colab work is created under `/content/writing-project`, which is temporary. Set `USE_GOOGLE_DRIVE = True` in the notebook if you want the scaffolded project to persist in Google Drive.
+
 ## Setup
 
 ```powershell
