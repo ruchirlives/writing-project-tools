@@ -28,9 +28,9 @@ def add_markdown_to_document(document: Document, markdown: str) -> None:
             document.add_heading(line.removeprefix("## "), level=2)
         elif line.startswith("### "):
             document.add_heading(line.removeprefix("### "), level=3)
-        elif line.startswith("- "):
-            document.add_paragraph(line.removeprefix("- "), style="List Bullet")
-        elif line[:3].strip(".").isdigit() and ". " in line[:5]:
+        elif line.startswith(("- ", "* ")):
+            document.add_paragraph(line[2:], style="List Bullet")
+        elif ". " in line[:5] and line.split(". ", 1)[0].isdigit():
             document.add_paragraph(line.split(". ", 1)[1], style="List Number")
         else:
             document.add_paragraph(line)
@@ -141,4 +141,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
