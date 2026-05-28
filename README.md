@@ -22,7 +22,7 @@ Then rename `AGENTS.template.md` to `AGENTS.md` and edit it for the new project.
 From inside a new empty article folder, run:
 
 ```powershell
-python E:\CODINGPROJECTS\Sandboxes\writing-project-tools\scaffold_article.py --install
+python C:\path\to\writing-project-tools\scaffold_article.py --install
 ```
 
 This creates the standard Markdown files, `AGENTS.md`, `assertions.csv`, `docx_sources.csv`, `README.md`, `.gitignore`, a `.venv`, and installs this toolkit with `uv`.
@@ -30,7 +30,7 @@ This creates the standard Markdown files, `AGENTS.md`, `assertions.csv`, `docx_s
 To scaffold a folder from elsewhere:
 
 ```powershell
-python E:\CODINGPROJECTS\Sandboxes\writing-project-tools\scaffold_article.py E:\CODINGPROJECTS\Sandboxes\NewArticle --install
+python C:\path\to\writing-project-tools\scaffold_article.py C:\path\to\NewArticle --install
 ```
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
