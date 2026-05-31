@@ -123,17 +123,35 @@ The server exposes tools for working against any project folder by path:
 - `read_project_markdown`
 - `write_project_markdown`
 - `prepare_draft_inputs`
+- `build_paste_ready_llm_context`
+- `export_paste_ready_llm_context`
 - `read_docx_sources`
 - `write_docx_sources`
 - `read_project_assertions`
 - `write_project_assertions`
 - `start_project_editor`
 
+For manual LLM workflows, export a paste-ready context bundle:
+
+```powershell
+export-writing-llm-context --project C:\path\to\ArticleProject --task "Draft article-draft.md from the reviewed outline"
+```
+
 Example MCP server command:
 
 ```json
 {
-  "command": "E:\\CODINGPROJECTS\\Python\\writing-project-tools\\.venv\\Scripts\\writing-project-mcp.exe"
+  "type": "local",
+  "command": [
+    "uv",
+    "--directory",
+    "E:/CODINGPROJECTS/Python/writing-project-tools",
+    "run",
+    "--extra",
+    "mcp",
+    "writing-project-mcp"
+  ],
+  "enabled": true
 }
 ```
 

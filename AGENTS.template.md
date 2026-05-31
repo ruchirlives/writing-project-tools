@@ -26,6 +26,8 @@ Use these `writing-project-tools` MCP helpers when available:
 - `read_project_markdown(project_dir, path)` reads one project Markdown file.
 - `write_project_markdown(project_dir, path, content)` writes one project Markdown file.
 - `prepare_draft_inputs(project_dir)` gathers instructions, outline, context, assertions, and Word config for draft creation.
+- `build_paste_ready_llm_context(project_dir, task="draft")` returns a Markdown context bundle for pasting into an external LLM.
+- `export_paste_ready_llm_context(project_dir, output="llm-context.md", task="draft")` writes that context bundle into the project folder.
 - `read_project_assertions(project_dir, csv_name="assertions.csv")` reads assertions.
 - `write_project_assertions(project_dir, rows, csv_name="assertions.csv")` writes assertions.
 - `read_docx_sources(project_dir, csv_name="docx_sources.csv")` reads Word generation config.

@@ -4,6 +4,7 @@ import socket
 import subprocess
 import sys
 import csv
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from writing_project_tools.assertions_editor import (
     write_assertions,
 )
 from writing_project_tools.create_docs import generate_docs
+from writing_project_tools.llm_context import build_llm_context, export_llm_context
 from writing_project_tools.scaffold import scaffold
 
 
@@ -50,7 +52,10 @@ def free_port(host: str) -> int:
 
 def read_agents_template() -> str:
     if not AGENTS_TEMPLATE_PATH.exists():
-        raise FileNotFoundError(f"Missing {AGENTS_TEMPLATE_PATH}")
+        resource = files("writing_project_tools").joinpath("AGENTS.template.md")
+        if not resource.is_file():
+            raise FileNotFoundError(f"Missing {AGENTS_TEMPLATE_PATH}")
+        return resource.read_text(encoding="utf-8")
     return AGENTS_TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
@@ -304,6 +309,38 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
             "Generate the Word version with generate_writing_docs(project_dir).",
         ],
     }
+
+
+@mcp.tool()
+def build_paste_ready_llm_context(
+    project_dir: str,
+    task: str = "draft",
+    include_all_markdown: bool = False,
+) -> dict[str, Any]:
+    """Build paste-ready Markdown context for use with an external LLM."""
+    root = project_path(project_dir)
+    return {
+        "project_dir": str(root),
+        "content": build_llm_context(root, task=task, include_all_markdown=include_all_markdown),
+    }
+
+
+@mcp.tool()
+def export_paste_ready_llm_context(
+    project_dir: str,
+    output: str = "llm-context.md",
+    task: str = "draft",
+    include_all_markdown: bool = False,
+) -> dict[str, Any]:
+    """Write paste-ready Markdown context for use with an external LLM."""
+    root = project_path(project_dir)
+    output_path = export_llm_context(
+        root,
+        output=output,
+        task=task,
+        include_all_markdown=include_all_markdown,
+    )
+    return {"path": str(output_path), "saved": True}
 
 
 @mcp.tool()

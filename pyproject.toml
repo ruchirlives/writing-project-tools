@@ -17,7 +17,22 @@ create-writing-docs = "writing_project_tools.create_docs:main"
 edit-assertions = "writing_project_tools.assertions_editor:main"
 scaffold-writing-project = "writing_project_tools.scaffold:main"
 writing-project-mcp = "writing_project_tools.mcp_server:main"
+export-writing-llm-context = "writing_project_tools.llm_context:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel.force-include]
+"AGENTS.template.md" = "writing_project_tools/AGENTS.template.md"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "AGENTS.template.md",
+    "README.md",
+    "pyproject.toml",
+    "src/",
+    "scaffold_article.py",
+    "docx_sources.csv",
+    "colab/",
+]
