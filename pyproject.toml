@@ -7,11 +7,17 @@ dependencies = [
     "python-docx>=1.1.2",
 ]
 
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.0.0",
+]
+
 [project.scripts]
 create-writing-docs = "writing_project_tools.create_docs:main"
 edit-assertions = "writing_project_tools.assertions_editor:main"
+scaffold-writing-project = "writing_project_tools.scaffold:main"
+writing-project-mcp = "writing_project_tools.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-

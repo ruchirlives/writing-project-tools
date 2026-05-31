@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,8 +11,6 @@ from docx import Document
 from docx.shared import Pt
 
 
-ROOT = Path.cwd()
-CONFIG_PATH = ROOT / "docx_sources.csv"
 DEFAULT_AUTHOR = "Author"
 
 
@@ -110,24 +109,28 @@ def build_docx(
     patch_extended_properties(output_path)
 
 
-def read_config() -> list[dict[str, str]]:
-    if not CONFIG_PATH.exists():
+def read_config(config_path: Path) -> list[dict[str, str]]:
+    if not config_path.exists():
         raise FileNotFoundError(
-            f"Missing {CONFIG_PATH}. Create it with columns: "
+            f"Missing {config_path}. Create it with columns: "
             "source,title,subject,output,author"
         )
 
-    with CONFIG_PATH.open("r", encoding="utf-8", newline="") as handle:
+    with config_path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
 
 
-def main() -> None:
-    for row in read_config():
+def generate_docs(project_dir: Path, config: str = "docx_sources.csv") -> list[Path]:
+    root = project_dir.resolve()
+    config_path = (root / config).resolve()
+    outputs: list[Path] = []
+
+    for row in read_config(config_path):
         source = row.get("source", "").strip()
         if not source:
             continue
 
-        source_path = ROOT / source
+        source_path = root / source
         if not source_path.exists():
             raise FileNotFoundError(f"Missing source file: {source_path}")
 
@@ -135,8 +138,34 @@ def main() -> None:
         subject = row.get("subject", "").strip() or title
         output = row.get("output", "").strip() or f"docs/{source_path.with_suffix('.docx').name}"
         author = row.get("author", "").strip() or DEFAULT_AUTHOR
+        output_path = root / output
 
-        build_docx(source_path, title, subject, ROOT / output, author)
+        build_docx(source_path, title, subject, output_path, author)
+        outputs.append(output_path)
+
+    return outputs
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate Word .docx files from project Markdown sources.")
+    parser.add_argument(
+        "--project",
+        default=".",
+        help="Project folder containing docx_sources.csv. Defaults to the current folder.",
+    )
+    parser.add_argument(
+        "--config",
+        default="docx_sources.csv",
+        help="Config CSV path relative to the project folder.",
+    )
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    outputs = generate_docs(Path(args.project), args.config)
+    for output in outputs:
+        print(f"Wrote {output}")
 
 
 if __name__ == "__main__":
