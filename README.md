@@ -130,6 +130,8 @@ The server exposes tools for working against any project folder by path:
 - `read_project_assertions`
 - `write_project_assertions`
 - `start_project_editor`
+- `get_project_editor_status`
+- `stop_project_editor`
 
 For manual LLM workflows, export a paste-ready context bundle:
 

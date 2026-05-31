@@ -4,6 +4,8 @@ import socket
 import subprocess
 import sys
 import csv
+import json
+import os
 from importlib.resources import files
 from pathlib import Path
 import time
@@ -61,6 +63,73 @@ def wait_for_http(url: str, timeout: float = 5.0) -> bool:
         except Exception:
             time.sleep(0.2)
     return False
+
+
+def wait_for_process_http(process: subprocess.Popen[bytes], url: str, timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return False
+        try:
+            with urlopen(url, timeout=0.5) as response:
+                return 200 <= response.status < 500
+        except Exception:
+            time.sleep(0.2)
+    return False
+
+
+def runtime_log_dir() -> Path:
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_STATE_HOME") or os.environ.get("TEMP")
+    if base:
+        path = Path(base) / "writing-project-tools"
+    else:
+        path = Path.home() / ".writing-project-tools"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def project_log_path(root: Path, port: int) -> Path:
+    safe_name = "".join(char if char.isalnum() else "-" for char in root.name).strip("-") or "project"
+    return runtime_log_dir() / f"{safe_name}-editor-{port}.log"
+
+
+def find_editor_processes(csv_path: Path) -> list[dict[str, Any]]:
+    csv_text = str(csv_path)
+    ps_csv = "'" + csv_text.replace("'", "''") + "'"
+    script = (
+        "$pattern = 'writing_project_tools.assertions_editor'; "
+        "$csv = " + ps_csv + "; "
+        "$items = Get-CimInstance Win32_Process | "
+        "Where-Object { $_.Name -match '^python(\\.exe)?$' -and $_.CommandLine -and $_.CommandLine.Contains($pattern) -and $_.CommandLine.Contains($csv) } | "
+        "ForEach-Object { "
+        "$port = ''; "
+        "if ($_.CommandLine -match '--port\\s+(\\d+)') { $port = $Matches[1] }; "
+        "[pscustomobject]@{ pid = $_.ProcessId; command = $_.CommandLine; port = $port; url = $(if ($port) { 'http://127.0.0.1:' + $port + '/' } else { '' }) } "
+        "}; "
+        "$items | ConvertTo-Json -Depth 3"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+    except Exception:
+        return []
+    text = result.stdout.strip()
+    if not text:
+        return []
+    try:
+        data = json.loads(text)
+    except Exception:
+        return []
+    if isinstance(data, dict):
+        return [data]
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    return []
 
 
 def read_agents_template() -> str:
@@ -164,6 +233,8 @@ def get_workflow_summary() -> dict[str, Any]:
             "read_docx_sources",
             "write_docx_sources",
             "generate_writing_docs",
+            "get_project_editor_status",
+            "stop_project_editor",
         ],
     }
 
@@ -388,8 +459,9 @@ def start_project_editor(
     project_dir: str,
     csv_name: str = "assertions.csv",
     host: str = "127.0.0.1",
-    port: int = 0,
+    port: int = 8765,
     open_browser: bool = False,
+    startup_timeout: float = 30.0,
 ) -> dict[str, Any]:
     """Start the local assertions and Markdown editor for a writing project."""
     root = project_path(project_dir)
@@ -397,7 +469,21 @@ def start_project_editor(
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing {csv_path}")
 
-    selected_port = port or free_port(host)
+    selected_port = port
+    url = f"http://{host}:{selected_port}/"
+    if wait_for_http(url, timeout=1.0):
+        return {
+            "started": False,
+            "reused": True,
+            "url": url,
+            "markdown_url": f"{url}markdown",
+            "csv": str(csv_path),
+            "message": (
+                "A project editor is already responding at this URL. Open the returned URL; "
+                "do not start a project-local Python script or create a .venv."
+            ),
+        }
+
     command = [
         sys.executable,
         "-m",
@@ -412,8 +498,7 @@ def start_project_editor(
     if not open_browser:
         command.append("--no-open")
 
-    url = f"http://{host}:{selected_port}/"
-    log_path = root / f".writing-project-editor-{selected_port}.log"
+    log_path = project_log_path(root, selected_port)
     with log_path.open("w", encoding="utf-8") as log_handle:
         process = subprocess.Popen(
             command,
@@ -422,7 +507,7 @@ def start_project_editor(
             stderr=subprocess.STDOUT,
         )
 
-    if not wait_for_http(url):
+    if not wait_for_process_http(process, url, timeout=startup_timeout):
         return_code = process.poll()
         if return_code is None:
             process.terminate()
@@ -431,17 +516,76 @@ def start_project_editor(
             except subprocess.TimeoutExpired:
                 process.kill()
         log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-        raise RuntimeError(
-            f"Project editor did not start at {url}. "
-            f"Exit code: {return_code}. Log: {log_path}\n{log_text}"
-        )
+        return {
+            "started": False,
+            "url": url,
+            "markdown_url": f"{url}markdown",
+            "csv": str(csv_path),
+            "log": str(log_path),
+            "exit_code": return_code,
+            "log_excerpt": log_text[-4000:],
+            "message": (
+                "Project editor did not become reachable before the startup timeout. "
+                "Do not create a project-local .venv or search for tools/assertions_editor.py. "
+                "Report this failure and the log path to the user."
+            ),
+        }
 
     return {
+        "started": True,
         "pid": process.pid,
         "url": url,
         "markdown_url": f"{url}markdown",
         "csv": str(csv_path),
         "log": str(log_path),
+        "message": (
+            "Open the returned URL in your browser. Do not start a project-local "
+            "Python script or create a .venv for this editor."
+        ),
+    }
+
+
+@mcp.tool()
+def get_project_editor_status(project_dir: str) -> dict[str, Any]:
+    """Return likely editor processes for a writing project."""
+    root = project_path(project_dir)
+    csv_path = root / "assertions.csv"
+    processes = find_editor_processes(csv_path)
+    for process in processes:
+        url = process.get("url", "")
+        process["reachable"] = bool(url and wait_for_http(url, timeout=1.0))
+    return {
+        "running": bool(processes),
+        "processes": processes,
+        "message": "Found matching editor processes." if processes else "No matching editor processes found.",
+    }
+
+
+@mcp.tool()
+def stop_project_editor(project_dir: str) -> dict[str, Any]:
+    """Stop editor processes for a writing project by matching the assertions CSV path."""
+    root = project_path(project_dir)
+    csv_path = root / "assertions.csv"
+    processes = find_editor_processes(csv_path)
+    stopped: list[int] = []
+    for process in processes:
+        pid = int(process["pid"])
+        try:
+            subprocess.run(
+                ["powershell", "-NoProfile", "-Command", f"Stop-Process -Id {pid} -Force"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            stopped.append(pid)
+        except Exception:
+            continue
+    return {
+        "stopped": bool(stopped),
+        "stopped_pids": stopped,
+        "matched_processes": processes,
+        "message": "Stopped matching project editor processes." if stopped else "No matching project editor process was stopped.",
     }
 
 

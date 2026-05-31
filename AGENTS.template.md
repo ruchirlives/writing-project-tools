@@ -37,6 +37,8 @@ Use these `writing-project-tools` MCP helpers when available:
 - `write_docx_sources(project_dir, rows, csv_name="docx_sources.csv")` writes Word generation config.
 - `generate_writing_docs(project_dir, config="docx_sources.csv")` generates Word documents.
 - `start_project_editor(project_dir, csv_name="assertions.csv")` starts the browser-based assertions and Markdown editor.
+- `get_project_editor_status(project_dir)` checks whether a project editor is recorded and reachable.
+- `stop_project_editor(project_dir)` stops the recorded project editor.
 
 If MCP is unavailable, use the installed console commands:
 
