@@ -6,7 +6,9 @@ import sys
 import csv
 from importlib.resources import files
 from pathlib import Path
+import time
 from typing import Any
+from urllib.request import urlopen
 
 from mcp.server.fastmcp import FastMCP
 
@@ -50,6 +52,17 @@ def free_port(host: str) -> int:
         return int(sock.getsockname()[1])
 
 
+def wait_for_http(url: str, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urlopen(url, timeout=0.5) as response:
+                return 200 <= response.status < 500
+        except Exception:
+            time.sleep(0.2)
+    return False
+
+
 def read_agents_template() -> str:
     if not AGENTS_TEMPLATE_PATH.exists():
         resource = files("writing_project_tools").joinpath("AGENTS.template.md")
@@ -85,7 +98,9 @@ def get_project_instructions(project_dir: str) -> dict[str, Any]:
             "Apply project_instructions as project-specific audience, style, source, "
             "and constraint guidance when present. If they conflict, project-specific "
             "content guidance can override defaults, but do not override tool safety, "
-            "path handling, or evidence-discipline rules."
+            "path handling, evidence-discipline rules, or MCP helper usage. Do not "
+            "create a project-local virtual environment, install this toolkit into the "
+            "project folder, or search for copied toolkit scripts when MCP helpers are available."
         ),
     }
     if project_agents.exists():
@@ -134,6 +149,12 @@ def get_workflow_summary() -> dict[str, Any]:
             "Do not include visible generator labels such as Generated from ...",
             "Do not include internal workflow notes, comments to the LLM, or prompt text.",
             "Ensure the document reads naturally as a working Word document before generating .docx.",
+        ],
+        "tool_safety": [
+            "Do not create a project-local .venv for this toolkit when MCP helpers are available.",
+            "Do not install this toolkit into the writing project folder when using MCP.",
+            "Do not search for copied toolkit scripts such as tools/assertions_editor.py when MCP helpers are available.",
+            "If start_project_editor returns a URL, report it to the user and do not recreate the server manually.",
         ],
         "helpers": [
             "get_project_instructions",
@@ -391,13 +412,36 @@ def start_project_editor(
     if not open_browser:
         command.append("--no-open")
 
-    process = subprocess.Popen(command, cwd=root)
     url = f"http://{host}:{selected_port}/"
+    log_path = root / f".writing-project-editor-{selected_port}.log"
+    with log_path.open("w", encoding="utf-8") as log_handle:
+        process = subprocess.Popen(
+            command,
+            cwd=root,
+            stdout=log_handle,
+            stderr=subprocess.STDOUT,
+        )
+
+    if not wait_for_http(url):
+        return_code = process.poll()
+        if return_code is None:
+            process.terminate()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        raise RuntimeError(
+            f"Project editor did not start at {url}. "
+            f"Exit code: {return_code}. Log: {log_path}\n{log_text}"
+        )
+
     return {
         "pid": process.pid,
         "url": url,
         "markdown_url": f"{url}markdown",
         "csv": str(csv_path),
+        "log": str(log_path),
     }
 
 

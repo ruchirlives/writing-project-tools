@@ -11,6 +11,9 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
 - Use Markdown files for planning and drafting, `assertions.csv` for claim review, and `docx_sources.csv` for Word document outputs.
+- Do not create a project-local `.venv`, install this toolkit into the project folder, or search for copied toolkit scripts when the MCP helpers are available.
+- If an MCP helper returns a URL, report that URL to the user and stop. Do not try to recreate the same server manually with shell commands unless the user asks you to debug a failure.
+- If project-local `AGENTS.md`, `README.md`, or `pyproject.toml` mention old copied-tool workflows, prefer the MCP helper workflow from these toolkit instructions for tool operations.
 
 ## MCP Helpers
 
