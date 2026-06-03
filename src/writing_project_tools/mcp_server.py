@@ -10,7 +10,7 @@ from importlib.resources import files
 from pathlib import Path
 import time
 from typing import Any
-from urllib.request import urlopen
+from urllib.parse import urlparse
 
 from mcp.server.fastmcp import FastMCP
 
@@ -55,11 +55,17 @@ def free_port(host: str) -> int:
 
 
 def wait_for_http(url: str, timeout: float = 5.0) -> bool:
+    parsed = urlparse(url)
+    host = parsed.hostname
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if not host:
+        return False
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with urlopen(url, timeout=0.5) as response:
-                return 200 <= response.status < 500
+            with socket.create_connection((host, port), timeout=0.5) as sock:
+                return True
         except Exception:
             time.sleep(0.2)
     return False
@@ -70,11 +76,9 @@ def wait_for_process_http(process: subprocess.Popen[bytes], url: str, timeout: f
     while time.monotonic() < deadline:
         if process.poll() is not None:
             return False
-        try:
-            with urlopen(url, timeout=0.5) as response:
-                return 200 <= response.status < 500
-        except Exception:
-            time.sleep(0.2)
+        if wait_for_http(url, timeout=0.5):
+            return True
+        time.sleep(0.2)
     return False
 
 
@@ -93,9 +97,28 @@ def project_log_path(root: Path, port: int) -> Path:
     return runtime_log_dir() / f"{safe_name}-editor-{port}.log"
 
 
+def editor_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    python_path_entries = [entry for entry in sys.path if entry]
+    existing_python_path = env.get("PYTHONPATH")
+    if existing_python_path:
+        python_path_entries.append(existing_python_path)
+    env["PYTHONPATH"] = os.pathsep.join(python_path_entries)
+    return env
+
+
+def editor_python() -> str:
+    if os.name == "nt":
+        base_executable = getattr(sys, "_base_executable", "")
+        if base_executable and Path(base_executable).exists():
+            return str(base_executable)
+    return sys.executable
+
+
 def editor_command(csv_path: Path, host: str, port: int, open_browser: bool) -> list[str]:
     command = [
-        sys.executable,
+        editor_python(),
+        "-u",
         "-m",
         "writing_project_tools.assertions_editor",
         "--csv",
@@ -108,6 +131,14 @@ def editor_command(csv_path: Path, host: str, port: int, open_browser: bool) -> 
     if not open_browser:
         command.append("--no-open")
     return command
+
+
+def editor_creationflags() -> int:
+    if os.name != "nt":
+        return 0
+    flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    flags |= getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
+    return flags
 
 
 def find_editor_processes(csv_path: Path) -> list[dict[str, Any]]:
@@ -508,19 +539,32 @@ def start_project_editor(
         process = subprocess.Popen(
             command,
             cwd=root,
+            env=editor_environment(),
+            stdin=subprocess.DEVNULL,
             stdout=log_handle,
             stderr=subprocess.STDOUT,
+            close_fds=True,
+            creationflags=editor_creationflags(),
         )
 
     if not wait_for_process_http(process, url, timeout=startup_timeout):
         return_code = process.poll()
-        if return_code is None:
-            process.terminate()
-            try:
-                process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                process.kill()
         log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        if return_code is None:
+            return {
+                "started": True,
+                "pid": process.pid,
+                "reachable": False,
+                "url": url,
+                "markdown_url": f"{url}markdown",
+                "csv": str(csv_path),
+                "log": str(log_path),
+                "log_excerpt": log_text[-4000:],
+                "message": (
+                    "Project editor process is running, but the readiness probe did not confirm the local URL. "
+                    "Open the returned URL; if the browser cannot connect after a few seconds, report the log path."
+                ),
+            }
         return {
             "started": False,
             "url": url,

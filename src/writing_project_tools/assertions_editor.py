@@ -967,10 +967,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    print(f"Starting writing project editor with CSV argument: {args.csv}", flush=True)
     csv_path = Path(args.csv).resolve()
+    print(f"Resolved assertions CSV path: {csv_path}", flush=True)
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing {csv_path}")
 
+    print(f"Binding editor server on {args.host}:{args.port}", flush=True)
     server = ThreadingHTTPServer((args.host, args.port), create_handler(csv_path))
     url = f"http://{args.host}:{args.port}/"
     if not args.no_open:
