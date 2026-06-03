@@ -93,6 +93,23 @@ def project_log_path(root: Path, port: int) -> Path:
     return runtime_log_dir() / f"{safe_name}-editor-{port}.log"
 
 
+def editor_command(csv_path: Path, host: str, port: int, open_browser: bool) -> list[str]:
+    command = [
+        sys.executable,
+        "-m",
+        "writing_project_tools.assertions_editor",
+        "--csv",
+        str(csv_path),
+        "--host",
+        host,
+        "--port",
+        str(port),
+    ]
+    if not open_browser:
+        command.append("--no-open")
+    return command
+
+
 def find_editor_processes(csv_path: Path) -> list[dict[str, Any]]:
     csv_text = str(csv_path)
     ps_csv = "'" + csv_text.replace("'", "''") + "'"
@@ -484,19 +501,7 @@ def start_project_editor(
             ),
         }
 
-    command = [
-        sys.executable,
-        "-m",
-        "writing_project_tools.assertions_editor",
-        "--csv",
-        str(csv_path),
-        "--host",
-        host,
-        "--port",
-        str(selected_port),
-    ]
-    if not open_browser:
-        command.append("--no-open")
+    command = editor_command(csv_path, host, selected_port, open_browser)
 
     log_path = project_log_path(root, selected_port)
     with log_path.open("w", encoding="utf-8") as log_handle:
