@@ -165,6 +165,18 @@ PAGE = r"""<!doctype html>
       background: #fff2c7;
       color: var(--warn);
     }
+    .new-badge {
+      display: inline-block;
+      margin-left: 6px;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-weight: 650;
+      background: #dff2ff;
+      color: #135b7c;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
     .evidence {
       color: var(--muted);
       font-size: 13px;
@@ -215,6 +227,13 @@ PAGE = r"""<!doctype html>
     tr.excluded {
       background: #fafafa;
     }
+    tr.new-row {
+      background: #f1f9ff;
+      box-shadow: inset 4px 0 0 #2d8fbd;
+    }
+    tr.new-row.excluded {
+      background: #f5fbff;
+    }
   </style>
 </head>
 <body>
@@ -253,11 +272,14 @@ PAGE = r"""<!doctype html>
   <script>
     let rows = [];
     let dirty = false;
+    let newRowIds = new Set();
 
     const statusEl = document.getElementById('status');
     const rowsEl = document.getElementById('rows');
     const searchEl = document.getElementById('search');
     const sectionFilterEl = document.getElementById('sectionFilter');
+    const projectKey = __ASSERTIONS_PROJECT_KEY__;
+    const seenRowsKey = `assertions-editor-seen:${projectKey}`;
 
     function setStatus(message) {
       statusEl.textContent = message;
@@ -288,12 +310,17 @@ PAGE = r"""<!doctype html>
     function render() {
       const filtered = visibleRows();
       rowsEl.innerHTML = filtered.map(row => {
+        const key = rowKey(row);
         const checked = row.include === 'TRUE' ? 'checked' : '';
-        const excluded = row.include === 'TRUE' ? '' : ' class="excluded"';
+        const classes = [];
+        if (row.include !== 'TRUE') classes.push('excluded');
+        if (newRowIds.has(key)) classes.push('new-row');
+        const classAttr = classes.length ? ` class="${classes.join(' ')}"` : '';
+        const newBadge = newRowIds.has(key) ? '<span class="new-badge">New</span>' : '';
         const statusClass = row.status === 'verify' ? 'pill verify' : 'pill';
-        return `<tr${excluded}>
+        return `<tr${classAttr}>
           <td class="include"><input type="checkbox" data-id="${escapeHtml(row.id)}" ${checked}></td>
-          <td class="id">${escapeHtml(row.id)}</td>
+          <td class="id">${escapeHtml(row.id)}${newBadge}</td>
           <td class="section">${escapeHtml(row.section)}</td>
           <td class="assertion assertion-cell">${escapeHtml(row.assertion)}</td>
           <td class="edit-cell">
@@ -308,7 +335,29 @@ PAGE = r"""<!doctype html>
         </tr>`;
       }).join('');
       const included = rows.filter(row => row.include === 'TRUE').length;
-      setStatus(`${included} of ${rows.length} included. Showing ${filtered.length}. ${dirty ? 'Unsaved changes.' : 'Saved.'}`);
+      const newCount = newRowIds.size;
+      const newText = newCount ? ` ${newCount} new since last refresh.` : '';
+      setStatus(`${included} of ${rows.length} included. Showing ${filtered.length}.${newText} ${dirty ? 'Unsaved changes.' : 'Saved.'}`);
+    }
+
+    function rowKey(row) {
+      return String(row.id || `${row.section}|${row.assertion}`);
+    }
+
+    function updateNewRowState(loadedRows) {
+      const currentKeys = loadedRows.map(rowKey);
+      try {
+        const previousKeys = JSON.parse(localStorage.getItem(seenRowsKey) || 'null');
+        if (Array.isArray(previousKeys)) {
+          const previous = new Set(previousKeys);
+          newRowIds = new Set(currentKeys.filter(key => !previous.has(key)));
+        } else {
+          newRowIds = new Set();
+        }
+        localStorage.setItem(seenRowsKey, JSON.stringify(currentKeys));
+      } catch (error) {
+        newRowIds = new Set();
+      }
     }
 
     function tsvCell(value) {
@@ -347,6 +396,7 @@ PAGE = r"""<!doctype html>
       const response = await fetch('/api/assertions');
       if (!response.ok) throw new Error('Could not load assertions CSV');
       rows = await response.json();
+      updateNewRowState(rows);
       renderFilters();
       render();
     }
@@ -877,7 +927,8 @@ def create_handler(csv_path: Path) -> type[BaseHTTPRequestHandler]:
             parsed_url = urlparse(self.path)
             path = parsed_url.path
             if path == "/":
-                self.respond(200, PAGE.encode("utf-8"), "text/html; charset=utf-8")
+                page = PAGE.replace("__ASSERTIONS_PROJECT_KEY__", json.dumps(str(csv_path.resolve())))
+                self.respond(200, page.encode("utf-8"), "text/html; charset=utf-8")
             elif path == "/markdown":
                 self.respond(200, MARKDOWN_PAGE.encode("utf-8"), "text/html; charset=utf-8")
             elif path == "/api/assertions":

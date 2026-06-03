@@ -276,6 +276,8 @@ def get_workflow_summary() -> dict[str, Any]:
         "helpers": [
             "get_project_instructions",
             "read_writing_context",
+            "prepare_project_refresh",
+            "apply_project_refresh",
             "write_project_assertions",
             "start_project_editor",
             "read_docx_sources",
@@ -500,6 +502,132 @@ def write_project_assertions(
     csv_path = project_path(project_dir) / csv_name
     write_assertions(csv_path, rows)
     return {"path": str(csv_path), "rows": len(rows), "saved": True}
+
+
+def assertion_changed(existing: dict[str, str], incoming: dict[str, Any]) -> bool:
+    return any(
+        str(existing.get(field, "")) != str(incoming.get(field, ""))
+        for field in ("section", "assertion", "evidence_or_check")
+    )
+
+
+def merge_assertion_review_state(
+    existing_rows: list[dict[str, str]],
+    incoming_rows: list[dict[str, Any]],
+    preserve_existing: bool = True,
+) -> list[dict[str, str]]:
+    existing_by_id = {
+        str(row.get("id", "")): row
+        for row in existing_rows
+        if str(row.get("id", ""))
+    }
+    merged: list[dict[str, str]] = []
+    incoming_ids: set[str] = set()
+
+    for incoming in incoming_rows:
+        row = {field: str(incoming.get(field, "")) for field in FIELDNAMES}
+        row_id = row.get("id", "")
+        incoming_ids.add(row_id)
+        existing = existing_by_id.get(row_id)
+        if existing and preserve_existing:
+            row["include"] = existing.get("include", row["include"])
+            row["user_edit"] = existing.get("user_edit", row["user_edit"])
+            if assertion_changed(existing, incoming):
+                row["status"] = "verify"
+            else:
+                row["status"] = existing.get("status", row["status"])
+        elif not row["status"]:
+            row["status"] = "verify"
+        if not row["include"]:
+            row["include"] = "TRUE"
+        merged.append(row)
+
+    if preserve_existing:
+        for existing in existing_rows:
+            row_id = str(existing.get("id", ""))
+            if row_id and row_id in incoming_ids:
+                continue
+            removed = {field: str(existing.get(field, "")) for field in FIELDNAMES}
+            removed["include"] = "FALSE"
+            removed["status"] = "removed"
+            merged.append(removed)
+
+    return merged
+
+
+@mcp.tool()
+def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
+    """Gather current Markdown, plan, outline, and assertions for a project refresh."""
+    root = project_path(project_dir)
+    files = read_markdown_bundle(root, STANDARD_CONTEXT_FILES)
+    assertions_path = root / "assertions.csv"
+    assertions = read_assertions(assertions_path) if assertions_path.exists() else []
+    return {
+        "project_dir": str(root),
+        "instructions": get_project_instructions(str(root)),
+        "files": files,
+        "targets": {
+            "article_plan": "article-plan.md",
+            "article_outline": "article-outline.md",
+            "assertions_csv": "assertions.csv",
+        },
+        "assertions": {
+            "fieldnames": FIELDNAMES,
+            "rows": assertions,
+            "missing": not assertions_path.exists(),
+        },
+        "refresh_guidance": [
+            "Compare source/context Markdown with the current article-plan.md and article-outline.md.",
+            "Update article-plan.md and article-outline.md to reflect material changes in the Markdown inputs.",
+            "Regenerate assertions from the refreshed plan and outline plus relevant source/context.",
+            "Track content-related assertions only; exclude workflow, formatting, setup, and drafting-process notes.",
+            "Preserve reviewed assertion IDs when the claim is substantively the same.",
+            "Use new assertion IDs only for genuinely new claims.",
+            "When applying the refresh, matching assertion IDs preserve include flags and user_edit wording.",
+        ],
+        "recommended_next_tool": "apply_project_refresh",
+    }
+
+
+@mcp.tool()
+def apply_project_refresh(
+    project_dir: str,
+    article_plan: str,
+    article_outline: str,
+    assertions: list[dict[str, Any]],
+    preserve_existing_assertions: bool = True,
+) -> dict[str, Any]:
+    """Write refreshed plan, outline, and assertions while preserving assertion review state."""
+    root = project_path(project_dir)
+    plan_path = resolve_markdown_path(root, "article-plan.md")
+    outline_path = resolve_markdown_path(root, "article-outline.md")
+    assertions_path = root / "assertions.csv"
+    existing_assertions = read_assertions(assertions_path) if assertions_path.exists() else []
+    merged_assertions = merge_assertion_review_state(
+        existing_assertions,
+        assertions,
+        preserve_existing=preserve_existing_assertions,
+    )
+
+    plan_path.write_text(article_plan, encoding="utf-8")
+    outline_path.write_text(article_outline, encoding="utf-8")
+    write_assertions(assertions_path, merged_assertions)
+
+    return {
+        "project_dir": str(root),
+        "saved": True,
+        "article_plan": str(plan_path),
+        "article_outline": str(outline_path),
+        "assertions_csv": str(assertions_path),
+        "assertions_written": len(merged_assertions),
+        "removed_assertions_retained": len(
+            [row for row in merged_assertions if row.get("status") == "removed"]
+        ),
+        "message": (
+            "Refreshed article-plan.md, article-outline.md, and assertions.csv. "
+            "Refresh the assertions editor to highlight newly added assertion IDs."
+        ),
+    }
 
 
 @mcp.tool()
