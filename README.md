@@ -21,7 +21,8 @@ python -m pip install -e "E:\CODINGPROJECTS\Python\writing-project-tools[mcp]"
 ```
 
 ## Scaffold A New Article Folder
-
+When asked to create a new article folder, create that folder if it doesn't already exist in M:\Desktop\Documents\ARTICLES
+Then pwd into it.
 From inside a new empty article folder, run:
 
 ```powershell

@@ -232,7 +232,7 @@ def get_workflow_summary() -> dict[str, Any]:
         "standard_files": STANDARD_CONTEXT_FILES,
         "assertions_csv": {
             "required_columns": FIELDNAMES,
-            "status_values": ["planned", "interpretation", "verify", "draft_phrase"],
+            "status_values": ["planned", "interpretation", "verify", "verified", "draft_phrase"],
             "guidance": (
                 "Track content-related assertions only. Exclude setup, format instructions, "
                 "authorial stance, workflow notes, and drafting-process guidance."

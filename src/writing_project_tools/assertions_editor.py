@@ -152,16 +152,17 @@ PAGE = r"""<!doctype html>
     td.evidence-cell {
       width: 260px;
     }
-    .pill {
-      display: inline-block;
+    .status-select {
+      border: 1px solid var(--line);
       border-radius: 999px;
       padding: 3px 8px;
+      font: inherit;
       font-size: 12px;
       background: var(--accent-soft);
       color: #1e5f45;
-      white-space: nowrap;
+      max-width: 100%;
     }
-    .pill.verify {
+    .status-select.verify {
       background: #fff2c7;
       color: var(--warn);
     }
@@ -317,7 +318,12 @@ PAGE = r"""<!doctype html>
         if (newRowIds.has(key)) classes.push('new-row');
         const classAttr = classes.length ? ` class="${classes.join(' ')}"` : '';
         const newBadge = newRowIds.has(key) ? '<span class="new-badge">New</span>' : '';
-        const statusClass = row.status === 'verify' ? 'pill verify' : 'pill';
+        const statusClass = row.status === 'verify' ? 'status-select verify' : 'status-select';
+        const statusOptions = ['planned', 'interpretation', 'verify', 'verified', 'draft_phrase', 'removed'];
+        const currentStatus = row.status || 'verify';
+        const options = statusOptions.map(status =>
+          `<option value="${escapeHtml(status)}" ${status === currentStatus ? 'selected' : ''}>${escapeHtml(status)}</option>`
+        ).join('');
         return `<tr${classAttr}>
           <td class="include"><input type="checkbox" data-id="${escapeHtml(row.id)}" ${checked}></td>
           <td class="id">${escapeHtml(row.id)}${newBadge}</td>
@@ -330,7 +336,7 @@ PAGE = r"""<!doctype html>
             </div>
             <textarea class="user-edit" data-edit-id="${escapeHtml(row.id)}" placeholder="Optional revised wording">${escapeHtml(row.user_edit || '')}</textarea>
           </td>
-          <td class="status-cell"><span class="${statusClass}">${escapeHtml(row.status)}</span></td>
+          <td class="status-cell"><select class="${statusClass}" data-status-id="${escapeHtml(row.id)}">${options}</select></td>
           <td class="evidence evidence-cell">${escapeHtml(row.evidence_or_check)}</td>
         </tr>`;
       }).join('');
@@ -419,10 +425,16 @@ PAGE = r"""<!doctype html>
 
     rowsEl.addEventListener('change', event => {
       const checkbox = event.target.closest('input[type="checkbox"][data-id]');
-      if (!checkbox) return;
-      const row = rows.find(item => item.id === checkbox.dataset.id);
+      const statusSelect = event.target.closest('select[data-status-id]');
+      if (!checkbox && !statusSelect) return;
+      const rowId = checkbox ? checkbox.dataset.id : statusSelect.dataset.statusId;
+      const row = rows.find(item => item.id === rowId);
       if (!row) return;
-      row.include = checkbox.checked ? 'TRUE' : 'FALSE';
+      if (checkbox) {
+        row.include = checkbox.checked ? 'TRUE' : 'FALSE';
+      } else {
+        row.status = statusSelect.value;
+      }
       dirty = true;
       render();
     });

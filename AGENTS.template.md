@@ -111,7 +111,7 @@ Column guidance:
 - `section`: article section or planning area.
 - `assertion`: original planned claim.
 - `user_edit`: optional revised wording; leave blank when not needed.
-- `status`: one of `planned`, `interpretation`, `verify`, or `draft_phrase`.
+- `status`: one of `planned`, `interpretation`, `verify`, `verified`, or `draft_phrase`.
 - `evidence_or_check`: short evidence pointer, source note, or verification task.
 
 Use `read_writing_context(project_dir)` before generating assertions. Save generated rows with `write_project_assertions(project_dir, rows)`.
