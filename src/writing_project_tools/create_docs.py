@@ -232,7 +232,7 @@ def generate_docs(project_dir: Path, config: str = "docx_sources.csv") -> list[P
 
         title = row.get("title", "").strip() or source_path.stem.replace("-", " ").title()
         subject = row.get("subject", "").strip() or title
-        output = row.get("output", "").strip() or f"docs/{source_path.with_suffix('.docx').name}"
+        output = row.get("output", "").strip() or f"outputs/{source_path.with_suffix('.docx').name}"
         author = row.get("author", "").strip() or DEFAULT_AUTHOR
         output_path = root / output
 

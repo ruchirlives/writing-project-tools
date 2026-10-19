@@ -6,12 +6,12 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 
 ## Core Operating Rules
 
-- Treat source material as the evidence base. Do not treat the project plan or outline as the original evidence.
-- Check relevant source files before changing the plan, outline, or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
+- Treat source material as the evidence base. Do not treat the project plan as the original evidence.
+- Check relevant source files before changing the plan or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
 - Use Markdown files for planning and drafting, `assertions.csv` for claim review, and `docx_sources.csv` for Word document outputs.
-- Always keep assertions and outputs in sync. Ensure any changes in source files or assertion tables cascade to planning documents, drafts, and generated Word documents.
+- Always keep assertions and outputs in sync. Changes in source files or assertion tables should cascade to the plan, draft, and relevant deliverables in `outputs/`.
 - Always use UK English spelling (e.g., *programme*, *organise*, *centre*, *modelling*) and avoid double em dashes (use a single spaced en dash ' — ' or comma instead).
 - Do not create a project-local `.venv`, install this toolkit into the project folder, or search for copied toolkit scripts when the MCP helpers are available.
 - If an MCP helper returns a URL, report that URL to the user and stop. Do not try to recreate the same server manually with shell commands unless the user asks you to debug a failure.
@@ -30,7 +30,7 @@ Use these `writing-project-tools` MCP helpers when available:
 - `read_selected_markdown(project_dir, paths)` reads selected Markdown files.
 - `read_project_markdown(project_dir, path)` reads one project Markdown file.
 - `write_project_markdown(project_dir, path, content)` writes one project Markdown file.
-- `prepare_draft_inputs(project_dir)` gathers instructions, outline, context, assertions, and Word config for draft creation.
+- `prepare_draft_inputs(project_dir)` gathers instructions, plan, context, assertions, and Word config for draft creation.
 - `build_paste_ready_llm_context(project_dir, task="draft")` returns a Markdown context bundle for pasting into an external LLM.
 - `export_paste_ready_llm_context(project_dir, output="llm-context.md", task="draft")` writes that context bundle into the project folder.
 - `read_project_assertions(project_dir, csv_name="assertions.csv")` reads assertions.
@@ -52,18 +52,16 @@ edit-assertions --csv "C:\path\to\project\assertions.csv"
 
 ## Standard Project Files
 
-Recommended files (plan, outline, and draft are named after the project folder):
+Recommended files (plan and draft are named after the project folder):
 
-- `source-notes.md` for rough notes and prompts.
-- `context.md` for larger evidence, transcripts, research notes, or stakeholder input.
-- `considerations.md` for authorial stance, risks, constraints, and things to avoid.
-- `colleagues.md` for likely reviewer lenses or stakeholder priorities.
-- `instructions_for_authors.md` for the editorial brief.
-- `{folder-slug}-plan.md` as a concept describing the purpose, outputs, considerations, audiences, etc. as required, with some questions for further input and consideration.
-- `{folder-slug}-outline.md` to provide the actual structure of the final product, with bullet point placeholders for what might ultimately become full narrative.
-- `{folder-slug}-draft.md` for the draft created from the reviewed outline.
+- `context.md` for source material, evidence, notes, research, and initial ideas.
+- `drafting-instructions.md` for the editorial brief, audience, format, tone, and drafting requirements.
+- `considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
+- `{folder-slug}-plan.md` describing purpose, audience, outputs, considerations, proposed structure, and questions for further input.
+- `{folder-slug}-draft.md` for the draft created from the reviewed plan.
+- `outputs/` for deliverables such as reports, interactive HTML tables, Word documents, Excel workbooks, and other requested formats.
 
-For example, a project folder named "Peatland Action" would have files named `peatland-action-plan.md`, `peatland-action-outline.md`, and `peatland-action-draft.md`.
+For example, a project folder named "Peatland Action" would have `peatland-action-plan.md` and `peatland-action-draft.md`.
 
 Existing folders may have only some of these files. Work with the files that exist unless the user asks you to scaffold missing files.
 
@@ -89,12 +87,12 @@ Use this workflow when the user asks for article planning or drafting:
 2. Read source material with `read_writing_context(project_dir)` or `read_selected_markdown(project_dir, paths)`.
 3. Identify audience, editorial format, authorial stance, and evidence constraints.
 4. Create or revise the plan file (`{folder-slug}-plan.md`).
-5. Create or revise the outline file (`{folder-slug}-outline.md`).
+5. Include the proposed structure in the plan.
 6. Extract planned content assertions into `assertions.csv`.
 7. Ask the user to review assertions, or start the editor with `start_project_editor(project_dir)`.
-8. Revise the plan and outline from reviewed assertions.
-9. Create or revise the draft file (`{folder-slug}-draft.md`) from the reviewed outline. Use `prepare_draft_inputs(project_dir)` before drafting when available.
-10. Generate Word documents with `generate_writing_docs(project_dir)` when requested.
+8. Revise the plan from reviewed assertions.
+9. Create or revise the draft file (`{folder-slug}-draft.md`) from the reviewed plan. Use `prepare_draft_inputs(project_dir)` before drafting when available.
+10. Create requested deliverables in `outputs/`. Generate Word documents with `generate_writing_docs(project_dir)` when requested.
 
 ## Cascading Changes
 
@@ -104,13 +102,12 @@ If the user requests a "cascade", follow this workflow:
 2. Ensure those changes are propagated and reflected across all project files in this exact order:
    - First, amend the `assertions.csv` using assertion-related MCP helpers.
    - Second, use the amendments in `assertions.csv` to amend the plan file (`{folder-slug}-plan.md`).
-   - Third, use the amendments in `assertions.csv` and the plan file to amend the outline file (`{folder-slug}-outline.md`).
-   - Fourth, use the amendments in `assertions.csv`, the plan file, and the outline file to amend the draft file (`{folder-slug}-draft.md`) (only if the draft file already exists).
-3. Finally, use the MCP helper `generate_writing_docs` to build/rebuild the configured Word `.docx` documents.
+   - Third, use the amendments in `assertions.csv` and the plan file to amend the draft file (`{folder-slug}-draft.md`) (only if the draft file already exists).
+3. Finally, rebuild affected deliverables in `outputs/`; use `generate_writing_docs` for configured Word documents.
 
 ## Assertions Audit
 
-Use `assertions.csv` to track claims before drafting. It provides the actual wording that must be used associated with various assertions for both the outline and the draft.
+Use `assertions.csv` to track claims before drafting. It provides reviewed wording for the plan and draft.
 
 Track content-related assertions only. Do not include article setup, format instructions, authorial stance, workflow notes, or drafting-process guidance.
 
@@ -127,7 +124,7 @@ Column guidance:
 - `section`: article section or planning area.
 - `assertion`: original planned claim.
 - `user_edit`: optional revised wording; leave blank when not needed.
-- `status`: one of `planned`, `interpretation`, `verify`, `verified`, or `draft_phrase`.
+- `status`: one of `verify`, `verified`, or `draft_phrase`.
 - `evidence_or_check`: short evidence pointer, source note, or verification task.
 
 Use `read_writing_context(project_dir)` before generating assertions. Save generated rows with `write_project_assertions(project_dir, rows)`.

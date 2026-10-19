@@ -34,5 +34,4 @@ include = [
     "src/",
     "scaffold_article.py",
     "docx_sources.csv",
-    "colab/",
 ]

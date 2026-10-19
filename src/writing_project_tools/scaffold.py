@@ -22,14 +22,11 @@ def get_project_file_names(folder_name: str) -> dict[str, str]:
     """Get project file names using folder name as prefix."""
     slug = folder_name_to_slug(folder_name)
     return {
-        "source-notes.md": "# Source Notes\n\nAdd rough notes, prompts and initial article thoughts here.\n",
-        "context.md": "# Context\n\nAdd source material, evidence, interview notes, meeting notes or research here.\n",
+        "context.md": "# Context\n\nAdd source material, evidence, notes, interviews, meetings, research and initial ideas here.\n",
+        "drafting-instructions.md": "# Drafting Instructions\n\nAdd the editorial brief, audience, format, tone and drafting requirements here.\n",
         "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
-        "colleagues.md": "# Colleagues\n\nAdd likely reviewer lenses, stakeholder priorities or colleague feedback here.\n",
-        "instructions_for_authors.md": "# Instructions For Authors\n\nAdd the editorial brief here.\n",
-        f"{slug}-plan.md": f"# {folder_name} Plan For Comment\n\n## Working Title\n\n\n## Proposed Angle\n\n\n## Core Message\n\n\n## Proposed Content\n\n\n## Voice And Scope\n\n\n## Input Requested\n\n",
-        f"{slug}-outline.md": f"# {folder_name} Outline\n\n## Brief\n\n\n## Core Thesis\n\n\n## Suggested Structure\n\n\n## Notes For Drafting\n\n",
-        f"{slug}-draft.md": f"# {folder_name} Draft\n\nDraft from the approved outline after assertions have been reviewed.\n",
+        f"{slug}-plan.md": f"# {folder_name} Plan For Comment\n\n## Working Title\n\n\n## Proposed Angle\n\n\n## Core Message\n\n\n## Proposed Structure\n\n- Introduction: \n- Main points: \n- Conclusion: \n\n## Voice And Scope\n\n\n## Input Requested\n\n",
+        f"{slug}-draft.md": f"# {folder_name} Draft\n\nDraft from the reviewed plan after assertions have been reviewed.\n",
     }
 
 
@@ -41,21 +38,14 @@ def get_docx_sources_rows(folder_name: str) -> list[dict[str, str]]:
             "source": f"{slug}-plan.md",
             "title": f"{folder_name} Plan For Comment",
             "subject": f"{folder_name} plan",
-            "output": f"docs/{slug}-plan.docx",
-            "author": "Author Name",
-        },
-        {
-            "source": f"{slug}-outline.md",
-            "title": f"{folder_name} Outline",
-            "subject": f"{folder_name} outline",
-            "output": f"docs/{slug}-outline.docx",
+            "output": f"outputs/{slug}-plan.docx",
             "author": "Author Name",
         },
         {
             "source": f"{slug}-draft.md",
             "title": f"{folder_name} Draft",
             "subject": f"{folder_name} draft",
-            "output": f"docs/{slug}-draft.docx",
+            "output": f"outputs/{slug}-draft.docx",
             "author": "Author Name",
         },
     ]
@@ -65,13 +55,10 @@ def get_standard_context_files(folder_name: str) -> list[str]:
     """Get standard context file names using folder name as prefix."""
     slug = folder_name_to_slug(folder_name)
     return [
-        "instructions_for_authors.md",
-        "source-notes.md",
         "context.md",
+        "drafting-instructions.md",
         "considerations.md",
-        "colleagues.md",
         f"{slug}-plan.md",
-        f"{slug}-outline.md",
         f"{slug}-draft.md",
     ]
 
@@ -111,6 +98,7 @@ def run(command: list[str], cwd: Path) -> None:
 def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_uv: bool = True) -> dict[str, object]:
     target_dir = target_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "outputs").mkdir(exist_ok=True)
 
     folder_name = target_dir.name
     default_files = get_project_file_names(folder_name)
@@ -156,7 +144,7 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
     else:
         skipped.append("README.md")
 
-    gitignore = ".venv/\n__pycache__/\n*.py[cod]\ndocs/*.docx\n~$*.docx\n"
+    gitignore = ".venv/\n__pycache__/\n*.py[cod]\n~$*.docx\n"
     if write_text(target_dir / ".gitignore", gitignore, force):
         created.append(".gitignore")
     else:

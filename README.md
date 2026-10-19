@@ -29,7 +29,7 @@ From inside a new empty article folder, run:
 scaffold-writing-project
 ```
 
-This creates the standard Markdown files, including `article-plan.md`, `article-outline.md`, `article-draft.md`, `assertions.csv`, `docx_sources.csv`, `README.md`, and `.gitignore`.
+This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `assertions.csv`, `docx_sources.csv`, `README.md`, `.gitignore`, and an `outputs/` folder. The plan includes the proposed structure.
 
 To scaffold a folder from elsewhere:
 
@@ -39,25 +39,6 @@ scaffold-writing-project C:\path\to\NewArticle
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
-## Work In Google Colab
-
-Use the Colab template when you want to scaffold and work on a writing project in a Colab runtime instead of a local folder:
-
-```text
-colab/writing_project_tools_colab_template.ipynb
-```
-
-Upload that notebook to Google Colab, then run the cells in order. The notebook:
-
-- clones this toolkit from GitHub
-- installs it in editable mode
-- optionally mounts Google Drive for persistent project files
-- scaffolds a writing project folder
-- generates Word `.docx` files from Markdown sources
-- provides a Colab-compatible proxy link for the assertions editor
-
-By default, Colab work is created under `/content/writing-project`, which is temporary. Set `USE_GOOGLE_DRIVE = True` in the notebook if you want the scaffolded project to persist in Google Drive.
-
 ## Generate Word Documents
 
 ```powershell
@@ -65,13 +46,13 @@ create-writing-docs --project C:\path\to\ArticleProject
 ```
 
 Edit `docx_sources.csv` to list the Markdown files you want converted to Word.
-By default, new projects generate Word documents for the article plan, outline, and draft.
+By default, new projects generate Word documents for the plan and draft.
 
 ```powershell
 create-writing-docs --project C:\path\to\ArticleProject
 ```
 
-Generated `.docx` files are written to `docs/` unless a different output path is set in `docx_sources.csv`.
+Generated `.docx` files are written to `outputs/` unless a different output path is set in `docx_sources.csv`. Use `outputs/` for other deliverables too, such as reports, interactive HTML tables, and Excel workbooks.
 
 ## Project Editor
 
@@ -137,7 +118,7 @@ The server exposes tools for working against any project folder by path:
 For manual LLM workflows, export a paste-ready context bundle:
 
 ```powershell
-export-writing-llm-context --project C:\path\to\ArticleProject --task "Draft article-draft.md from the reviewed outline"
+export-writing-llm-context --project C:\path\to\ArticleProject --task "Draft the article from the reviewed plan"
 ```
 
 Example MCP server command:

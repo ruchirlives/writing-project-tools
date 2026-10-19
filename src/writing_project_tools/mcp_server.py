@@ -37,7 +37,6 @@ def get_project_file_names(project_dir: str) -> dict[str, str]:
     slug = folder_name_to_slug(root.name)
     return {
         "plan": f"{slug}-plan.md",
-        "outline": f"{slug}-outline.md",
         "draft": f"{slug}-draft.md",
         "slug": slug,
     }
@@ -232,13 +231,10 @@ def get_workflow_summary() -> dict[str, Any]:
     return {
         "standard_files_note": "File names are based on the project folder name (e.g., 'Peatland Action' -> 'peatland-action-plan.md')",
         "common_files": [
-            "instructions_for_authors.md",
-            "source-notes.md",
             "context.md",
+            "drafting-instructions.md",
             "considerations.md",
-            "colleagues.md",
             "{folder-slug}-plan.md",
-            "{folder-slug}-outline.md",
             "{folder-slug}-draft.md",
         ],
         "assertions_csv": {
@@ -253,12 +249,11 @@ def get_workflow_summary() -> dict[str, Any]:
             "Gather source notes and context.",
             "Identify audience, editorial format, and authorial stance.",
             "Create {folder-slug}-plan.md.",
-            "Create {folder-slug}-outline.md.",
             "Extract planned assertions into assertions.csv.",
             "Review assertions through the editor.",
-            "Revise plan and outline from reviewed assertions.",
-            "Create {folder-slug}-draft.md from the reviewed outline.",
-            "Generate Word documents from docx_sources.csv.",
+            "Revise the plan from reviewed assertions.",
+            "Create {folder-slug}-draft.md from the reviewed plan.",
+            "Create requested deliverables in outputs/; use docx_sources.csv for Word documents.",
             "Iterate based on feedback.",
         ],
         "markdown_style": [
@@ -434,7 +429,7 @@ def write_docx_sources(
 
 @mcp.tool()
 def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
-    """Gather instructions, outline, context, assertions, and docx config for draft creation."""
+    """Gather instructions, plan, context, assertions, and docx config for draft creation."""
     root = project_path(project_dir)
     instructions = get_project_instructions(str(root))
     standard_files = get_standard_context_files(root.name)
@@ -459,7 +454,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "draft_target": file_names["draft"],
         "file_names": file_names,
         "recommended_next_steps": [
-            f"Use {file_names['outline']} as the drafting structure.",
+            f"Use the proposed structure in {file_names['plan']} for drafting.",
             "Use source notes and context as the evidence base.",
             "Respect assertions.csv include flags and user_edit wording when present.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
@@ -572,7 +567,7 @@ def merge_assertion_review_state(
 
 @mcp.tool()
 def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
-    """Gather current Markdown, plan, outline, and assertions for a project refresh."""
+    """Gather current Markdown, plan, and assertions for a project refresh."""
     root = project_path(project_dir)
     standard_files = get_standard_context_files(root.name)
     files = read_markdown_bundle(root, standard_files)
@@ -586,7 +581,6 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "targets": {
             "plan": file_names["plan"],
-            "outline": file_names["outline"],
             "assertions_csv": "assertions.csv",
         },
         "assertions": {
@@ -595,9 +589,9 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
             "missing": not assertions_path.exists(),
         },
         "refresh_guidance": [
-            f"Compare source/context Markdown with the current {file_names['plan']} and {file_names['outline']}.",
-            f"Update {file_names['plan']} and {file_names['outline']} to reflect material changes in the Markdown inputs.",
-            "Regenerate assertions from the refreshed plan and outline plus relevant source/context.",
+            f"Compare source/context Markdown with the current {file_names['plan']}.",
+            f"Update {file_names['plan']}, including its proposed structure, to reflect material changes.",
+            "Regenerate assertions from the refreshed plan plus relevant source/context.",
             "Track content-related assertions only; exclude workflow, formatting, setup, and drafting-process notes.",
             "Preserve reviewed assertion IDs when the claim is substantively the same.",
             "Use new assertion IDs only for genuinely new claims.",
@@ -611,15 +605,13 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
 def apply_project_refresh(
     project_dir: str,
     article_plan: str,
-    article_outline: str,
     assertions: list[dict[str, Any]],
     preserve_existing_assertions: bool = True,
 ) -> dict[str, Any]:
-    """Write refreshed plan, outline, and assertions while preserving assertion review state."""
+    """Write refreshed plan and assertions while preserving assertion review state."""
     root = project_path(project_dir)
     file_names = get_project_file_names(str(root))
     plan_path = resolve_markdown_path(root, file_names["plan"])
-    outline_path = resolve_markdown_path(root, file_names["outline"])
     assertions_path = root / "assertions.csv"
     existing_assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     merged_assertions = merge_assertion_review_state(
@@ -629,21 +621,19 @@ def apply_project_refresh(
     )
 
     plan_path.write_text(article_plan, encoding="utf-8")
-    outline_path.write_text(article_outline, encoding="utf-8")
     write_assertions(assertions_path, merged_assertions)
 
     return {
         "project_dir": str(root),
         "saved": True,
         "plan": str(plan_path),
-        "outline": str(outline_path),
         "assertions_csv": str(assertions_path),
         "assertions_written": len(merged_assertions),
         "removed_assertions_retained": len(
             [row for row in merged_assertions if row.get("status") == "removed"]
         ),
         "message": (
-            f"Refreshed {file_names['plan']}, {file_names['outline']}, and assertions.csv. "
+            f"Refreshed {file_names['plan']} and assertions.csv. "
             "Refresh the assertions editor to highlight newly added assertion IDs."
         ),
     }
