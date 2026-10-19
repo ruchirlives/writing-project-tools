@@ -23,6 +23,7 @@ from writing_project_tools.assertions_editor import (
 )
 from writing_project_tools.create_docs import generate_docs
 from writing_project_tools.llm_context import build_llm_context, export_llm_context
+from writing_project_tools.migration import migrate_project
 from writing_project_tools.scaffold import scaffold, get_standard_context_files, folder_name_to_slug
 
 
@@ -283,6 +284,7 @@ def get_workflow_summary() -> dict[str, Any]:
         ],
         "helpers": [
             "get_project_instructions",
+            "migrate_writing_project",
             "read_writing_context",
             "prepare_project_refresh",
             "apply_project_refresh",
@@ -301,6 +303,12 @@ def get_workflow_summary() -> dict[str, Any]:
 def scaffold_article_project(project_dir: str, force: bool = False) -> dict[str, Any]:
     """Create the standard writing-project files in project_dir."""
     return scaffold(project_path(project_dir), force=force, install=False)
+
+
+@mcp.tool()
+def migrate_writing_project(project_dir: str) -> dict[str, Any]:
+    """Consolidate legacy Markdown and assertions into the current project format, with backups."""
+    return migrate_project(project_path(project_dir))
 
 
 @mcp.tool()

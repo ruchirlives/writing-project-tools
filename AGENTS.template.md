@@ -25,6 +25,7 @@ Use these `writing-project-tools` MCP helpers when available:
 - `get_writing_project_instructions()` reads these default toolkit instructions.
 - `get_workflow_summary()` returns a concise structured summary of files, assertion rules, workflow steps, and core helpers.
 - `scaffold_article_project(project_dir, force=False)` creates missing standard project files without overwriting by default.
+- `migrate_writing_project(project_dir)` consolidates legacy Markdown and CSV files into the current format and backs up originals.
 - `list_project_markdown(project_dir)` lists Markdown files in the project folder.
 - `read_writing_context(project_dir)` reads the standard writing-project Markdown files that exist.
 - `read_selected_markdown(project_dir, paths)` reads selected Markdown files.
