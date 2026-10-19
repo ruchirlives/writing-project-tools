@@ -6,11 +6,13 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 
 ## Core Operating Rules
 
-- Treat source material as the evidence base. Do not treat the article plan or outline as the original evidence.
-- Check relevant source files before changing `article-plan.md`, `article-outline.md`, or `article-draft.md`.
+- Treat source material as the evidence base. Do not treat the project plan or outline as the original evidence.
+- Check relevant source files before changing the plan, outline, or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
 - Use Markdown files for planning and drafting, `assertions.csv` for claim review, and `docx_sources.csv` for Word document outputs.
+- Always keep assertions and outputs in sync. Ensure any changes in source files or assertion tables cascade to planning documents, drafts, and generated Word documents.
+- Always use UK English spelling (e.g., *programme*, *organise*, *centre*, *modelling*) and avoid double em dashes (use a single spaced en dash ' — ' or comma instead).
 - Do not create a project-local `.venv`, install this toolkit into the project folder, or search for copied toolkit scripts when the MCP helpers are available.
 - If an MCP helper returns a URL, report that URL to the user and stop. Do not try to recreate the same server manually with shell commands unless the user asks you to debug a failure.
 - If project-local `AGENTS.md`, `README.md`, or `pyproject.toml` mention old copied-tool workflows, prefer the MCP helper workflow from these toolkit instructions for tool operations.
@@ -50,16 +52,18 @@ edit-assertions --csv "C:\path\to\project\assertions.csv"
 
 ## Standard Project Files
 
-Recommended files:
+Recommended files (plan, outline, and draft are named after the project folder):
 
 - `source-notes.md` for rough notes and prompts.
 - `context.md` for larger evidence, transcripts, research notes, or stakeholder input.
 - `considerations.md` for authorial stance, risks, constraints, and things to avoid.
 - `colleagues.md` for likely reviewer lenses or stakeholder priorities.
 - `instructions_for_authors.md` for the editorial brief.
-- `article-plan.md` for the short shareable plan.
-- `article-outline.md` for the fuller drafting outline.
-- `article-draft.md` for the draft created from the reviewed outline.
+- `{folder-slug}-plan.md` as a concept describing the purpose, outputs, considerations, audiences, etc. as required, with some questions for further input and consideration.
+- `{folder-slug}-outline.md` to provide the actual structure of the final product, with bullet point placeholders for what might ultimately become full narrative.
+- `{folder-slug}-draft.md` for the draft created from the reviewed outline.
+
+For example, a project folder named "Peatland Action" would have files named `peatland-action-plan.md`, `peatland-action-outline.md`, and `peatland-action-draft.md`.
 
 Existing folders may have only some of these files. Work with the files that exist unless the user asks you to scaffold missing files.
 
@@ -84,17 +88,29 @@ Use this workflow when the user asks for article planning or drafting:
 1. Read instructions with `get_project_instructions(project_dir)`. Use toolkit instructions as the base workflow, and project-local `AGENTS.md` as project-specific overlay guidance when present.
 2. Read source material with `read_writing_context(project_dir)` or `read_selected_markdown(project_dir, paths)`.
 3. Identify audience, editorial format, authorial stance, and evidence constraints.
-4. Create or revise `article-plan.md`.
-5. Create or revise `article-outline.md`.
+4. Create or revise the plan file (`{folder-slug}-plan.md`).
+5. Create or revise the outline file (`{folder-slug}-outline.md`).
 6. Extract planned content assertions into `assertions.csv`.
 7. Ask the user to review assertions, or start the editor with `start_project_editor(project_dir)`.
 8. Revise the plan and outline from reviewed assertions.
-9. Create or revise `article-draft.md` from the reviewed outline. Use `prepare_draft_inputs(project_dir)` before drafting when available.
+9. Create or revise the draft file (`{folder-slug}-draft.md`) from the reviewed outline. Use `prepare_draft_inputs(project_dir)` before drafting when available.
 10. Generate Word documents with `generate_writing_docs(project_dir)` when requested.
+
+## Cascading Changes
+
+If the user requests a "cascade", follow this workflow:
+
+1. Identify recently modified files in the project folder using MCP or workspace commands to see what changed.
+2. Ensure those changes are propagated and reflected across all project files in this exact order:
+   - First, amend the `assertions.csv` using assertion-related MCP helpers.
+   - Second, use the amendments in `assertions.csv` to amend the plan file (`{folder-slug}-plan.md`).
+   - Third, use the amendments in `assertions.csv` and the plan file to amend the outline file (`{folder-slug}-outline.md`).
+   - Fourth, use the amendments in `assertions.csv`, the plan file, and the outline file to amend the draft file (`{folder-slug}-draft.md`) (only if the draft file already exists).
+3. Finally, use the MCP helper `generate_writing_docs` to build/rebuild the configured Word `.docx` documents.
 
 ## Assertions Audit
 
-Use `assertions.csv` to track claims before drafting.
+Use `assertions.csv` to track claims before drafting. It provides the actual wording that must be used associated with various assertions for both the outline and the draft.
 
 Track content-related assertions only. Do not include article setup, format instructions, authorial stance, workflow notes, or drafting-process guidance.
 

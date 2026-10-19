@@ -2,22 +2,79 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import subprocess
 from pathlib import Path
 
 
 TOOLKIT_DIR = Path(__file__).resolve().parents[2]
 
-DEFAULT_FILES = {
-    "source-notes.md": "# Source Notes\n\nAdd rough notes, prompts and initial article thoughts here.\n",
-    "context.md": "# Context\n\nAdd source material, evidence, interview notes, meeting notes or research here.\n",
-    "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
-    "colleagues.md": "# Colleagues\n\nAdd likely reviewer lenses, stakeholder priorities or colleague feedback here.\n",
-    "instructions_for_authors.md": "# Instructions For Authors\n\nAdd the editorial brief here.\n",
-    "article-plan.md": "# Article Plan For Comment\n\n## Working Title\n\n\n## Proposed Angle\n\n\n## Core Message\n\n\n## Proposed Content\n\n\n## Voice And Scope\n\n\n## Input Requested\n\n",
-    "article-outline.md": "# Article Outline\n\n## Brief\n\n\n## Core Thesis\n\n\n## Suggested Structure\n\n\n## Notes For Drafting\n\n",
-    "article-draft.md": "# Article Draft\n\nDraft from the approved outline after assertions have been reviewed.\n",
-}
+
+def folder_name_to_slug(folder_name: str) -> str:
+    """Convert folder name to a slug for file naming (e.g., 'Peatland Action' -> 'peatland-action')."""
+    slug = folder_name.lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)
+    slug = slug.strip('-')
+    return slug or 'article'
+
+
+def get_project_file_names(folder_name: str) -> dict[str, str]:
+    """Get project file names using folder name as prefix."""
+    slug = folder_name_to_slug(folder_name)
+    return {
+        "source-notes.md": "# Source Notes\n\nAdd rough notes, prompts and initial article thoughts here.\n",
+        "context.md": "# Context\n\nAdd source material, evidence, interview notes, meeting notes or research here.\n",
+        "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
+        "colleagues.md": "# Colleagues\n\nAdd likely reviewer lenses, stakeholder priorities or colleague feedback here.\n",
+        "instructions_for_authors.md": "# Instructions For Authors\n\nAdd the editorial brief here.\n",
+        f"{slug}-plan.md": f"# {folder_name} Plan For Comment\n\n## Working Title\n\n\n## Proposed Angle\n\n\n## Core Message\n\n\n## Proposed Content\n\n\n## Voice And Scope\n\n\n## Input Requested\n\n",
+        f"{slug}-outline.md": f"# {folder_name} Outline\n\n## Brief\n\n\n## Core Thesis\n\n\n## Suggested Structure\n\n\n## Notes For Drafting\n\n",
+        f"{slug}-draft.md": f"# {folder_name} Draft\n\nDraft from the approved outline after assertions have been reviewed.\n",
+    }
+
+
+def get_docx_sources_rows(folder_name: str) -> list[dict[str, str]]:
+    """Get docx sources rows using folder name as prefix."""
+    slug = folder_name_to_slug(folder_name)
+    return [
+        {
+            "source": f"{slug}-plan.md",
+            "title": f"{folder_name} Plan For Comment",
+            "subject": f"{folder_name} plan",
+            "output": f"docs/{slug}-plan.docx",
+            "author": "Author Name",
+        },
+        {
+            "source": f"{slug}-outline.md",
+            "title": f"{folder_name} Outline",
+            "subject": f"{folder_name} outline",
+            "output": f"docs/{slug}-outline.docx",
+            "author": "Author Name",
+        },
+        {
+            "source": f"{slug}-draft.md",
+            "title": f"{folder_name} Draft",
+            "subject": f"{folder_name} draft",
+            "output": f"docs/{slug}-draft.docx",
+            "author": "Author Name",
+        },
+    ]
+
+
+def get_standard_context_files(folder_name: str) -> list[str]:
+    """Get standard context file names using folder name as prefix."""
+    slug = folder_name_to_slug(folder_name)
+    return [
+        "instructions_for_authors.md",
+        "source-notes.md",
+        "context.md",
+        "considerations.md",
+        "colleagues.md",
+        f"{slug}-plan.md",
+        f"{slug}-outline.md",
+        f"{slug}-draft.md",
+    ]
+
 
 ASSERTIONS_FIELDS = [
     "include",
@@ -27,30 +84,6 @@ ASSERTIONS_FIELDS = [
     "user_edit",
     "status",
     "evidence_or_check",
-]
-
-DOCX_SOURCES_ROWS = [
-    {
-        "source": "article-plan.md",
-        "title": "Article Plan For Comment",
-        "subject": "Article plan",
-        "output": "docs/article-plan.docx",
-        "author": "Author Name",
-    },
-    {
-        "source": "article-outline.md",
-        "title": "Article Outline",
-        "subject": "Article outline",
-        "output": "docs/article-outline.docx",
-        "author": "Author Name",
-    },
-    {
-        "source": "article-draft.md",
-        "title": "Article Draft",
-        "subject": "Article draft",
-        "output": "docs/article-draft.docx",
-        "author": "Author Name",
-    },
 ]
 
 
@@ -79,10 +112,14 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
     target_dir = target_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
 
+    folder_name = target_dir.name
+    default_files = get_project_file_names(folder_name)
+    docx_sources_rows = get_docx_sources_rows(folder_name)
+
     created: list[str] = []
     skipped: list[str] = []
 
-    for filename, content in DEFAULT_FILES.items():
+    for filename, content in default_files.items():
         if write_text(target_dir / filename, content, force):
             created.append(filename)
         else:
@@ -96,7 +133,7 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
     if write_csv(
         target_dir / "docx_sources.csv",
         ["source", "title", "subject", "output", "author"],
-        DOCX_SOURCES_ROWS,
+        docx_sources_rows,
         force,
     ):
         created.append("docx_sources.csv")

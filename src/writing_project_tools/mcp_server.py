@@ -23,23 +23,24 @@ from writing_project_tools.assertions_editor import (
 )
 from writing_project_tools.create_docs import generate_docs
 from writing_project_tools.llm_context import build_llm_context, export_llm_context
-from writing_project_tools.scaffold import scaffold
+from writing_project_tools.scaffold import scaffold, get_standard_context_files, folder_name_to_slug
 
 
 mcp = FastMCP("writing-project-tools")
 TOOLKIT_DIR = Path(__file__).resolve().parents[2]
 AGENTS_TEMPLATE_PATH = TOOLKIT_DIR / "AGENTS.template.md"
 
-STANDARD_CONTEXT_FILES = [
-    "instructions_for_authors.md",
-    "source-notes.md",
-    "context.md",
-    "considerations.md",
-    "colleagues.md",
-    "article-plan.md",
-    "article-outline.md",
-    "article-draft.md",
-]
+
+def get_project_file_names(project_dir: str) -> dict[str, str]:
+    """Get project-specific file names based on folder name."""
+    root = project_path(project_dir)
+    slug = folder_name_to_slug(root.name)
+    return {
+        "plan": f"{slug}-plan.md",
+        "outline": f"{slug}-outline.md",
+        "draft": f"{slug}-draft.md",
+        "slug": slug,
+    }
 
 
 def project_path(project_dir: str) -> Path:
@@ -229,7 +230,17 @@ def get_project_instructions(project_dir: str) -> dict[str, Any]:
 def get_workflow_summary() -> dict[str, Any]:
     """Return a concise structured summary of the writing-project workflow."""
     return {
-        "standard_files": STANDARD_CONTEXT_FILES,
+        "standard_files_note": "File names are based on the project folder name (e.g., 'Peatland Action' -> 'peatland-action-plan.md')",
+        "common_files": [
+            "instructions_for_authors.md",
+            "source-notes.md",
+            "context.md",
+            "considerations.md",
+            "colleagues.md",
+            "{folder-slug}-plan.md",
+            "{folder-slug}-outline.md",
+            "{folder-slug}-draft.md",
+        ],
         "assertions_csv": {
             "required_columns": FIELDNAMES,
             "status_values": ["planned", "interpretation", "verify", "verified", "draft_phrase"],
@@ -241,12 +252,12 @@ def get_workflow_summary() -> dict[str, Any]:
         "workflow": [
             "Gather source notes and context.",
             "Identify audience, editorial format, and authorial stance.",
-            "Create article-plan.md.",
-            "Create article-outline.md.",
+            "Create {folder-slug}-plan.md.",
+            "Create {folder-slug}-outline.md.",
             "Extract planned assertions into assertions.csv.",
             "Review assertions through the editor.",
             "Revise plan and outline from reviewed assertions.",
-            "Create article-draft.md from the reviewed outline.",
+            "Create {folder-slug}-draft.md from the reviewed outline.",
             "Generate Word documents from docx_sources.csv.",
             "Iterate based on feedback.",
         ],
@@ -337,13 +348,14 @@ def resolve_project_file(root: Path, requested_path: str) -> Path:
 def read_writing_context(project_dir: str) -> dict[str, Any]:
     """Read the standard writing-project Markdown files for assertion generation."""
     root = project_path(project_dir)
-    files = read_markdown_bundle(root, STANDARD_CONTEXT_FILES)
+    standard_files = get_standard_context_files(root.name)
+    files = read_markdown_bundle(root, standard_files)
     present = {file["path"] for file in files}
     return {
         "project_dir": str(root),
         "files": files,
         "missing_standard_files": [
-            path for path in STANDARD_CONTEXT_FILES if path not in present
+            path for path in standard_files if path not in present
         ],
     }
 
@@ -425,12 +437,14 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
     """Gather instructions, outline, context, assertions, and docx config for draft creation."""
     root = project_path(project_dir)
     instructions = get_project_instructions(str(root))
-    context_files = read_markdown_bundle(root, STANDARD_CONTEXT_FILES)
+    standard_files = get_standard_context_files(root.name)
+    context_files = read_markdown_bundle(root, standard_files)
 
     assertions_path = root / "assertions.csv"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
 
     docx_sources = read_docx_sources_from_path(root / "docx_sources.csv")
+    file_names = get_project_file_names(str(root))
 
     return {
         "project_dir": str(root),
@@ -442,12 +456,13 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
             "missing": not assertions_path.exists(),
         },
         "docx_sources": docx_sources,
-        "draft_target": "article-draft.md",
+        "draft_target": file_names["draft"],
+        "file_names": file_names,
         "recommended_next_steps": [
-            "Use article-outline.md as the drafting structure.",
+            f"Use {file_names['outline']} as the drafting structure.",
             "Use source notes and context as the evidence base.",
             "Respect assertions.csv include flags and user_edit wording when present.",
-            "Save the draft with write_project_markdown(project_dir, 'article-draft.md', content).",
+            f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
             "Generate the Word version with generate_writing_docs(project_dir).",
         ],
     }
@@ -559,16 +574,19 @@ def merge_assertion_review_state(
 def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
     """Gather current Markdown, plan, outline, and assertions for a project refresh."""
     root = project_path(project_dir)
-    files = read_markdown_bundle(root, STANDARD_CONTEXT_FILES)
+    standard_files = get_standard_context_files(root.name)
+    files = read_markdown_bundle(root, standard_files)
     assertions_path = root / "assertions.csv"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
+    file_names = get_project_file_names(str(root))
     return {
         "project_dir": str(root),
         "instructions": get_project_instructions(str(root)),
         "files": files,
+        "file_names": file_names,
         "targets": {
-            "article_plan": "article-plan.md",
-            "article_outline": "article-outline.md",
+            "plan": file_names["plan"],
+            "outline": file_names["outline"],
             "assertions_csv": "assertions.csv",
         },
         "assertions": {
@@ -577,8 +595,8 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
             "missing": not assertions_path.exists(),
         },
         "refresh_guidance": [
-            "Compare source/context Markdown with the current article-plan.md and article-outline.md.",
-            "Update article-plan.md and article-outline.md to reflect material changes in the Markdown inputs.",
+            f"Compare source/context Markdown with the current {file_names['plan']} and {file_names['outline']}.",
+            f"Update {file_names['plan']} and {file_names['outline']} to reflect material changes in the Markdown inputs.",
             "Regenerate assertions from the refreshed plan and outline plus relevant source/context.",
             "Track content-related assertions only; exclude workflow, formatting, setup, and drafting-process notes.",
             "Preserve reviewed assertion IDs when the claim is substantively the same.",
@@ -599,8 +617,9 @@ def apply_project_refresh(
 ) -> dict[str, Any]:
     """Write refreshed plan, outline, and assertions while preserving assertion review state."""
     root = project_path(project_dir)
-    plan_path = resolve_markdown_path(root, "article-plan.md")
-    outline_path = resolve_markdown_path(root, "article-outline.md")
+    file_names = get_project_file_names(str(root))
+    plan_path = resolve_markdown_path(root, file_names["plan"])
+    outline_path = resolve_markdown_path(root, file_names["outline"])
     assertions_path = root / "assertions.csv"
     existing_assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     merged_assertions = merge_assertion_review_state(
@@ -616,15 +635,15 @@ def apply_project_refresh(
     return {
         "project_dir": str(root),
         "saved": True,
-        "article_plan": str(plan_path),
-        "article_outline": str(outline_path),
+        "plan": str(plan_path),
+        "outline": str(outline_path),
         "assertions_csv": str(assertions_path),
         "assertions_written": len(merged_assertions),
         "removed_assertions_retained": len(
             [row for row in merged_assertions if row.get("status") == "removed"]
         ),
         "message": (
-            "Refreshed article-plan.md, article-outline.md, and assertions.csv. "
+            f"Refreshed {file_names['plan']}, {file_names['outline']}, and assertions.csv. "
             "Refresh the assertions editor to highlight newly added assertion IDs."
         ),
     }

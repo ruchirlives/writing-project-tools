@@ -6,18 +6,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from writing_project_tools.assertions_editor import FIELDNAMES, markdown_files, read_assertions
-
-
-STANDARD_CONTEXT_FILES = [
-    "instructions_for_authors.md",
-    "source-notes.md",
-    "context.md",
-    "considerations.md",
-    "colleagues.md",
-    "article-plan.md",
-    "article-outline.md",
-    "article-draft.md",
-]
+from writing_project_tools.scaffold import get_standard_context_files
 
 
 def project_path(project_dir: str | Path) -> Path:
@@ -73,7 +62,7 @@ def build_llm_context(
     if include_all_markdown:
         context_paths = markdown_files(root)
     else:
-        context_paths = STANDARD_CONTEXT_FILES
+        context_paths = get_standard_context_files(root.name)
 
     parts = [
         "# LLM Writing Project Context",

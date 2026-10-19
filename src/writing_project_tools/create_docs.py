@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import csv
 import argparse
 from datetime import datetime, timezone
@@ -14,34 +15,129 @@ from docx.shared import Pt
 DEFAULT_AUTHOR = "Author"
 
 
+def is_separator_line(line: str) -> bool:
+    line = line.strip()
+    if not line:
+        return False
+    if "|" not in line or "-" not in line:
+        return False
+    return all(c in "| -:" for c in line)
+
+
+def parse_table_row(line: str) -> list[str]:
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return [cell.strip() for cell in stripped.split("|")]
+
+
+def add_runs_to_paragraph(paragraph, text: str) -> None:
+    font_name = "Calibri"
+
+    pattern = re.compile(r"(\*\*.*?\*\*|__.*?__)")
+    parts = pattern.split(text)
+    for part in parts:
+        if not part:
+            continue
+        if (part.startswith("**") and part.endswith("**")) or (part.startswith("__") and part.endswith("__")):
+            content = part[2:-2]
+            run = paragraph.add_run(content)
+            run.bold = True
+        else:
+            run = paragraph.add_run(part)
+        run.font.name = font_name
+
+
 def add_markdown_to_document(document: Document, markdown: str) -> None:
-    for raw_line in markdown.splitlines():
+    lines = markdown.splitlines()
+    i = 0
+    while i < len(lines):
+        raw_line = lines[i]
         line = raw_line.strip()
 
         if not line:
+            i += 1
+            continue
+
+        # Check if this line starts a table
+        is_table = False
+        if "|" in line and i + 1 < len(lines):
+            next_line = lines[i + 1].strip()
+            if is_separator_line(next_line):
+                is_table = True
+
+        if is_table:
+            table_lines = []
+            while i < len(lines):
+                curr_line = lines[i].strip()
+                if "|" not in curr_line:
+                    break
+                table_lines.append(curr_line)
+                i += 1
+
+            if len(table_lines) >= 2:
+                header_cells = parse_table_row(table_lines[0])
+                # Skip the separator line table_lines[1]
+                body_rows = [parse_table_row(l) for l in table_lines[2:]]
+
+                num_cols = len(header_cells)
+                if num_cols > 0:
+                    table = document.add_table(rows=1, cols=num_cols)
+                    table.style = "Table Grid"
+
+                    hdr_cells = table.rows[0].cells
+                    for col_idx, cell_text in enumerate(header_cells):
+                        p = hdr_cells[col_idx].paragraphs[0]
+                        add_runs_to_paragraph(p, cell_text)
+                        for run in p.runs:
+                            run.bold = True
+
+                    for row_cells in body_rows:
+                        row = table.add_row()
+                        cells = row.cells
+                        for col_idx in range(num_cols):
+                            cell_text = row_cells[col_idx] if col_idx < len(row_cells) else ""
+                            p = cells[col_idx].paragraphs[0]
+                            add_runs_to_paragraph(p, cell_text)
             continue
 
         if line.startswith("# "):
-            document.add_heading(line.removeprefix("# "), level=1)
+            heading = document.add_heading("", level=1)
+            add_runs_to_paragraph(heading, line.removeprefix("# "))
         elif line.startswith("## "):
-            document.add_heading(line.removeprefix("## "), level=2)
+            heading = document.add_heading("", level=2)
+            add_runs_to_paragraph(heading, line.removeprefix("## "))
         elif line.startswith("### "):
-            document.add_heading(line.removeprefix("### "), level=3)
+            heading = document.add_heading("", level=3)
+            add_runs_to_paragraph(heading, line.removeprefix("### "))
         elif line.startswith(("- ", "* ")):
-            document.add_paragraph(line[2:], style="List Bullet")
+            p = document.add_paragraph(style="List Bullet")
+            add_runs_to_paragraph(p, line[2:])
         elif ". " in line[:5] and line.split(". ", 1)[0].isdigit():
-            document.add_paragraph(line.split(". ", 1)[1], style="List Number")
+            p = document.add_paragraph(style="List Number")
+            add_runs_to_paragraph(p, line.split(". ", 1)[1])
         else:
-            document.add_paragraph(line)
+            p = document.add_paragraph()
+            add_runs_to_paragraph(p, line)
+
+        i += 1
+
 
 
 def style_document(document: Document) -> None:
     styles = document.styles
-    styles["Normal"].font.name = "Aptos"
+    styles["Normal"].font.name = "Calibri"
     styles["Normal"].font.size = Pt(11)
 
     for style_name in ("Heading 1", "Heading 2", "Heading 3"):
-        styles[style_name].font.name = "Aptos Display"
+        if style_name in styles:
+            styles[style_name].font.name = "Calibri"
+
+    for style_name in ("List Bullet", "List Number"):
+        if style_name in styles:
+            styles[style_name].font.name = "Calibri"
 
 
 def set_document_properties(
