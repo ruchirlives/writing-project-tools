@@ -17,6 +17,7 @@ FIELDNAMES = [
     "include",
     "id",
     "section",
+    "precis",
     "assertion",
     "user_edit",
     "status",
@@ -105,18 +106,19 @@ PAGE = r"""<!doctype html>
       <button id="includeAll" class="px-3.5 py-2 text-xs font-semibold border border-[#d9dfd8] bg-white rounded-md hover:bg-gray-50 transition cursor-pointer">Include all visible</button>
       <button id="excludeAll" class="px-3.5 py-2 text-xs font-semibold border border-[#d9dfd8] bg-white rounded-md hover:bg-gray-50 transition cursor-pointer">Exclude all visible</button>
       <select id="sectionFilter" aria-label="Filter by section" class="px-3.5 py-2 text-xs border border-[#d9dfd8] bg-white rounded-md focus:outline-none focus:border-[#1f6f50] cursor-pointer min-w-[180px]"></select>
-      <input id="search" type="search" placeholder="Search assertions, evidence or status" class="px-3.5 py-2 text-xs border border-[#d9dfd8] bg-white rounded-md focus:outline-none focus:border-[#1f6f50] flex-grow md:max-w-md">
+      <input id="search" type="search" placeholder="Search précis, assertions, evidence or status" class="px-3.5 py-2 text-xs border border-[#d9dfd8] bg-white rounded-md focus:outline-none focus:border-[#1f6f50] flex-grow md:max-w-md">
     </div>
   </header>
   <main class="flex-grow px-6 py-5 max-w-[1600px] w-full mx-auto overflow-hidden">
     <p class="text-sm text-[#5d6a63] mb-3 min-h-[20px] font-medium" id="status"></p>
     <div class="w-full max-w-full overflow-x-auto border border-[#d9dfd8] bg-white rounded-xl shadow-md">
-      <table class="w-full border-collapse table-fixed min-w-[1500px]">
+      <table class="w-full border-collapse table-fixed min-w-[1700px]">
         <thead>
           <tr class="bg-[#eef3ef] border-b border-[#d9dfd8]">
             <th class="w-[70px] text-center py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Include</th>
             <th class="w-[70px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">ID</th>
             <th class="w-[150px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Section</th>
+            <th class="w-[190px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Précis</th>
             <th class="w-[330px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Assertion</th>
             <th class="w-[500px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">User edit</th>
             <th class="w-[125px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Status</th>
@@ -146,6 +148,10 @@ PAGE = r"""<!doctype html>
           <input type="text" id="newSection" list="sectionList" required placeholder="e.g. Intro" class="w-full px-3 py-2 text-sm border border-[#d9dfd8] rounded-md focus:outline-none focus:border-[#1f6f50]">
           <datalist id="sectionList"></datalist>
         </div>
+      </div>
+      <div>
+        <label for="newPrecis" class="block text-xs font-bold text-[#2d3932] uppercase mb-1">Précis</label>
+        <input type="text" id="newPrecis" placeholder="Short label for navigating the list" class="w-full px-3 py-2 text-sm border border-[#d9dfd8] rounded-md focus:outline-none focus:border-[#1f6f50]">
       </div>
       <div>
         <label for="newAssertion" class="block text-xs font-bold text-[#2d3932] uppercase mb-1">Assertion Wording</label>
@@ -200,7 +206,7 @@ PAGE = r"""<!doctype html>
       const section = sectionFilterEl.value;
       return rows.filter(row => {
         const matchesSection = !section || row.section === section;
-        const haystack = `${row.id} ${row.section} ${row.assertion} ${row.user_edit || ''} ${row.status} ${row.evidence_or_check}`.toLowerCase();
+        const haystack = `${row.id} ${row.section} ${row.precis || ''} ${row.assertion} ${row.user_edit || ''} ${row.status} ${row.evidence_or_check}`.toLowerCase();
         return matchesSection && (!query || haystack.includes(query));
       });
     }
@@ -247,6 +253,7 @@ PAGE = r"""<!doctype html>
           <td class="py-3 px-3 text-center align-middle"><input type="checkbox" data-id="${escapeHtml(row.id)}" ${checked} class="w-4 h-4 text-[#1f6f50] border-[#d9dfd8] rounded focus:ring-[#1f6f50] cursor-pointer"></td>
           <td class="py-3 px-3 align-middle font-mono text-xs text-[#5d6a63] whitespace-nowrap">${escapeHtml(row.id)}${newBadge}</td>
           <td class="py-3 px-3 align-middle text-sm font-semibold">${escapeHtml(row.section)}</td>
+          <td class="py-3 px-3"><input type="text" class="precis w-full text-sm border border-[#d9dfd8] rounded-md p-2 focus:outline-none focus:border-[#1f6f50]" data-precis-id="${escapeHtml(row.id)}" value="${escapeHtml(row.precis || '')}" placeholder="Short label"></td>
           <td class="py-3 px-3 text-sm leading-relaxed">${escapeHtml(row.assertion)}</td>
           <td class="py-3 px-3">
             <div class="flex items-center justify-between gap-2 mb-1.5">
@@ -309,7 +316,7 @@ PAGE = r"""<!doctype html>
     }
 
     function visibleRowsAsTsv() {
-      const columns = ['include', 'id', 'section', 'assertion', 'user_edit', 'status', 'evidence_or_check'];
+      const columns = ['include', 'id', 'section', 'precis', 'assertion', 'user_edit', 'status', 'evidence_or_check'];
       const lines = [columns.join('\t')];
       for (const row of visibleRows()) {
         lines.push(columns.map(column => tsvCell(row[column])).join('\t'));
@@ -378,6 +385,15 @@ PAGE = r"""<!doctype html>
     });
 
     rowsEl.addEventListener('input', event => {
+      const precisInput = event.target.closest('input[data-precis-id]');
+      if (precisInput) {
+        const row = rows.find(item => item.id === precisInput.dataset.precisId);
+        if (!row) return;
+        row.precis = precisInput.value;
+        dirty = true;
+        setStatus('Unsaved changes.');
+        return;
+      }
       const textarea = event.target.closest('textarea[data-edit-id]');
       if (!textarea) return;
       const row = rows.find(item => item.id === textarea.dataset.editId);
@@ -417,6 +433,7 @@ PAGE = r"""<!doctype html>
     document.getElementById('addAssertionBtn').addEventListener('click', () => {
       document.getElementById('newId').value = generateNextId();
       document.getElementById('newSection').value = '';
+      document.getElementById('newPrecis').value = '';
       document.getElementById('newAssertion').value = '';
       document.getElementById('newEvidence').value = '';
       document.getElementById('newStatus').value = 'verify';
@@ -427,6 +444,7 @@ PAGE = r"""<!doctype html>
       event.preventDefault();
       const newId = document.getElementById('newId').value.trim();
       const newSection = document.getElementById('newSection').value.trim();
+      const newPrecis = document.getElementById('newPrecis').value.trim();
       const newAssertion = document.getElementById('newAssertion').value.trim();
       const newEvidence = document.getElementById('newEvidence').value.trim();
       const newStatus = document.getElementById('newStatus').value;
@@ -442,6 +460,7 @@ PAGE = r"""<!doctype html>
         include: 'TRUE',
         id: newId,
         section: newSection,
+        precis: newPrecis,
         assertion: newAssertion,
         user_edit: '',
         status: newStatus,
@@ -908,7 +927,7 @@ MARKDOWN_PAGE = r"""<!doctype html>
 
 def read_assertions(csv_path: Path) -> list[dict[str, str]]:
     with csv_path.open("r", encoding="utf-8", newline="") as handle:
-        return list(csv.DictReader(handle))
+        return [{field: row.get(field, "") or "" for field in FIELDNAMES} for row in csv.DictReader(handle)]
 
 
 def write_assertions(csv_path: Path, rows: list[dict[str, str]]) -> None:

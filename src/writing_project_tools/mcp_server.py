@@ -241,8 +241,10 @@ def get_workflow_summary() -> dict[str, Any]:
             "required_columns": FIELDNAMES,
             "status_values": ["planned", "interpretation", "verify", "verified", "draft_phrase"],
             "guidance": (
-                "Track content-related assertions only. Exclude setup, format instructions, "
-                "authorial stance, workflow notes, and drafting-process guidance."
+                "Track content-related assertions only. Put a short navigation label in precis and "
+                "preserve the actual wording to be used in assertion. Record evidence for "
+                "each assertion. Exclude setup, format instructions, authorial stance, workflow "
+                "notes, and drafting-process guidance."
             ),
         },
         "workflow": [
@@ -455,8 +457,9 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "recommended_next_steps": [
             f"Use the proposed structure in {file_names['plan']} for drafting.",
-            "Use source notes and context as the evidence base.",
+            "Use source material in context.md as the evidence base and follow drafting-instructions.md.",
             "Respect assertions.csv include flags and user_edit wording when present.",
+            "Use precis only to navigate the list; use assertion or user_edit as the claim wording.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
             "Generate the Word version with generate_writing_docs(project_dir).",
         ],
@@ -592,6 +595,7 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
             f"Compare source/context Markdown with the current {file_names['plan']}.",
             f"Update {file_names['plan']}, including its proposed structure, to reflect material changes.",
             "Regenerate assertions from the refreshed plan plus relevant source/context.",
+            "Put a short navigation summary in precis, preserve the actual phrasing in assertion, and record evidence for every assertion.",
             "Track content-related assertions only; exclude workflow, formatting, setup, and drafting-process notes.",
             "Preserve reviewed assertion IDs when the claim is substantively the same.",
             "Use new assertion IDs only for genuinely new claims.",

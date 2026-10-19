@@ -111,10 +111,12 @@ Use `assertions.csv` to track claims before drafting. It provides reviewed wordi
 
 Track content-related assertions only. Do not include article setup, format instructions, authorial stance, workflow notes, or drafting-process guidance.
 
+Extract the actual wording intended for use from source material or the plan into `assertion`. Write a short précis only in `precis` to help navigate the list. Never use the précis as draft wording. Back every assertion with evidence and record a specific source pointer in `evidence_or_check`. If evidence has not yet been found, mark the assertion for verification and do not present it as established fact.
+
 Required columns:
 
 ```csv
-include,id,section,assertion,user_edit,status,evidence_or_check
+include,id,section,precis,assertion,user_edit,status,evidence_or_check
 ```
 
 Column guidance:
@@ -122,10 +124,11 @@ Column guidance:
 - `include`: use `TRUE` for claims to keep and `FALSE` for claims excluded from the draft.
 - `id`: stable row identifier.
 - `section`: article section or planning area.
-- `assertion`: original planned claim.
+- `precis`: brief shorthand for locating the claim in the list; not wording for the draft.
+- `assertion`: actual source or planned wording intended for use, not a paraphrased summary.
 - `user_edit`: optional revised wording; leave blank when not needed.
 - `status`: one of `verify`, `verified`, or `draft_phrase`.
-- `evidence_or_check`: short evidence pointer, source note, or verification task.
+- `evidence_or_check`: specific evidence pointer or, for an unverified claim, the verification task.
 
 Use `read_writing_context(project_dir)` before generating assertions. Save generated rows with `write_project_assertions(project_dir, rows)`.
 

@@ -1,8 +1,11 @@
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import csv
+import tempfile
 import threading
 import unittest
 
+from writing_project_tools.assertions_editor import FIELDNAMES, read_assertions, write_assertions
 from writing_project_tools.mcp_server import (
     editor_command,
     merge_assertion_review_state,
@@ -45,6 +48,29 @@ class WaitForHttpTests(unittest.TestCase):
 
 
 class AssertionMergeTests(unittest.TestCase):
+    def test_precis_is_separate_from_wording_and_does_not_reset_review(self) -> None:
+        existing = [{"include": "TRUE", "id": "A1", "section": "Intro", "precis": "Old label", "assertion": "Full intended wording.", "user_edit": "", "status": "verified", "evidence_or_check": "Source 1"}]
+        incoming = [{**existing[0], "precis": "Better label"}]
+
+        merged = merge_assertion_review_state(existing, incoming)
+
+        self.assertEqual(merged[0]["precis"], "Better label")
+        self.assertEqual(merged[0]["assertion"], "Full intended wording.")
+        self.assertEqual(merged[0]["status"], "verified")
+
+    def test_legacy_csv_gains_blank_precis_on_save(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "assertions.csv"
+            path.write_text("include,id,section,assertion,user_edit,status,evidence_or_check\nTRUE,A1,Intro,Full wording,,verify,Source 1\n", encoding="utf-8")
+
+            rows = read_assertions(path)
+            self.assertEqual(rows[0]["precis"], "")
+            write_assertions(path, rows)
+            with path.open(encoding="utf-8", newline="") as handle:
+                saved = csv.DictReader(handle)
+                self.assertEqual(saved.fieldnames, FIELDNAMES)
+                self.assertEqual(next(saved)["assertion"], "Full wording")
+
     def test_matching_id_preserves_review_state(self) -> None:
         existing = [{
             "include": "FALSE",
