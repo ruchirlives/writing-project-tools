@@ -6,11 +6,11 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 
 ## Core Operating Rules
 
-- Treat source material as the evidence base. Do not treat the project plan as the original evidence.
+- Treat context.md and files in sources/ as the evidence base. Do not treat the project plan as the original evidence.
 - Check relevant source files before changing the plan or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
-- Use Markdown files for planning and drafting, `assertions.csv` for claim review, and `docx_sources.csv` for Word document outputs.
+- Use Markdown files for planning and drafting, `outputs/assertions.xlsx` for claim review, and `docx_sources.csv` for Word document outputs.
 - Always keep assertions and outputs in sync. Changes in source files or assertion tables should cascade to the plan, draft, and relevant deliverables in `outputs/`.
 - Always use UK English spelling (e.g., *programme*, *organise*, *centre*, *modelling*) and avoid double em dashes (use a single spaced en dash ' — ' or comma instead).
 - Do not create a project-local `.venv`, install this toolkit into the project folder, or search for copied toolkit scripts when the MCP helpers are available.
@@ -25,7 +25,8 @@ Use these `writing-project-tools` MCP helpers when available:
 - `get_writing_project_instructions()` reads these default toolkit instructions.
 - `get_workflow_summary()` returns a concise structured summary of files, assertion rules, workflow steps, and core helpers.
 - `scaffold_article_project(project_dir, force=False)` creates missing standard project files without overwriting by default.
-- `migrate_writing_project(project_dir)` consolidates legacy Markdown and CSV files into the current format, removes the project `.gitignore`, and backs up originals.
+- `migrate_writing_project(project_dir)` consolidates legacy Markdown and CSV files, moves input files into `sources/` and deliverables into `outputs/`, removes the project `.gitignore`, and backs up changed source files.
+- `list_project_sources(project_dir)` lists input files in `sources/`.
 - `list_project_markdown(project_dir)` lists Markdown files in the project folder.
 - `read_writing_context(project_dir)` reads the standard writing-project Markdown files that exist.
 - `read_selected_markdown(project_dir, paths)` reads selected Markdown files.
@@ -34,12 +35,12 @@ Use these `writing-project-tools` MCP helpers when available:
 - `prepare_draft_inputs(project_dir)` gathers instructions, plan, context, assertions, and Word config for draft creation.
 - `build_paste_ready_llm_context(project_dir, task="draft")` returns a Markdown context bundle for pasting into an external LLM.
 - `export_paste_ready_llm_context(project_dir, output="llm-context.md", task="draft")` writes that context bundle into the project folder.
-- `read_project_assertions(project_dir, csv_name="assertions.csv")` reads assertions.
-- `write_project_assertions(project_dir, rows, csv_name="assertions.csv")` writes assertions.
+- `read_project_assertions(project_dir, csv_name="outputs/assertions.xlsx")` reads assertions.
+- `write_project_assertions(project_dir, rows, csv_name="outputs/assertions.xlsx")` writes assertions.
 - `read_docx_sources(project_dir, csv_name="docx_sources.csv")` reads Word generation config.
 - `write_docx_sources(project_dir, rows, csv_name="docx_sources.csv")` writes Word generation config.
 - `generate_writing_docs(project_dir, config="docx_sources.csv")` generates Word documents.
-- `start_project_editor(project_dir, csv_name="assertions.csv")` starts the browser-based assertions and Markdown editor.
+- `start_project_editor(project_dir, csv_name="outputs/assertions.xlsx")` starts the browser-based assertions and Markdown editor.
 - `get_project_editor_status(project_dir)` checks whether a project editor is recorded and reachable.
 - `stop_project_editor(project_dir)` stops the recorded project editor.
 
@@ -48,7 +49,7 @@ If MCP is unavailable, use the installed console commands:
 ```powershell
 scaffold-writing-project "C:\path\to\project"
 create-writing-docs --project "C:\path\to\project"
-edit-assertions --csv "C:\path\to\project\assertions.csv"
+edit-assertions --workbook "C:\path\to\project\outputs\assertions.xlsx"
 ```
 
 ## Standard Project Files
@@ -56,11 +57,12 @@ edit-assertions --csv "C:\path\to\project\assertions.csv"
 Recommended files (plan and draft are named after the project folder):
 
 - `context.md` for source material, evidence, notes, research, and initial ideas.
+- `sources/` for supplied input files such as PDFs, exported emails, and other reference material.
 - `drafting-instructions.md` for the editorial brief, audience, format, tone, and drafting requirements.
 - `considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
 - `{folder-slug}-plan.md` describing purpose, audience, outputs, considerations, proposed structure, and questions for further input.
 - `{folder-slug}-draft.md` for the draft created from the reviewed plan.
-- `outputs/` for deliverables such as reports, interactive HTML tables, Word documents, Excel workbooks, and other requested formats.
+- `outputs/` for the assertions list and deliverables such as reports, interactive HTML tables, Word documents, Excel workbooks, and other requested formats.
 
 For example, a project folder named "Peatland Action" would have `peatland-action-plan.md` and `peatland-action-draft.md`.
 
@@ -89,7 +91,7 @@ Use this workflow when the user asks for article planning or drafting:
 3. Identify audience, editorial format, authorial stance, and evidence constraints.
 4. Create or revise the plan file (`{folder-slug}-plan.md`).
 5. Include the proposed structure in the plan.
-6. Extract planned content assertions into `assertions.csv`.
+6. Extract planned content assertions into `outputs/assertions.xlsx`.
 7. Ask the user to review assertions, or start the editor with `start_project_editor(project_dir)`.
 8. Revise the plan from reviewed assertions.
 9. Create or revise the draft file (`{folder-slug}-draft.md`) from the reviewed plan. Use `prepare_draft_inputs(project_dir)` before drafting when available.
@@ -101,22 +103,22 @@ If the user requests a "cascade", follow this workflow:
 
 1. Identify recently modified files in the project folder using MCP or workspace commands to see what changed.
 2. Ensure those changes are propagated and reflected across all project files in this exact order:
-   - First, amend the `assertions.csv` using assertion-related MCP helpers.
-   - Second, use the amendments in `assertions.csv` to amend the plan file (`{folder-slug}-plan.md`).
-   - Third, use the amendments in `assertions.csv` and the plan file to amend the draft file (`{folder-slug}-draft.md`) (only if the draft file already exists).
+   - First, amend `outputs/assertions.xlsx` using assertion-related MCP helpers.
+   - Second, use the amendments in `outputs/assertions.xlsx` to amend the plan file (`{folder-slug}-plan.md`).
+   - Third, use the amendments in `outputs/assertions.xlsx` and the plan file to amend the draft file (`{folder-slug}-draft.md`) (only if the draft file already exists).
 3. Finally, rebuild affected deliverables in `outputs/`; use `generate_writing_docs` for configured Word documents.
 
 ## Assertions Audit
 
-Use `assertions.csv` to track claims before drafting. It provides reviewed wording for the plan and draft.
+Use `outputs/assertions.xlsx` to track claims before drafting. It provides reviewed wording for the plan and draft.
 
 Track content-related assertions only. Do not include article setup, format instructions, authorial stance, workflow notes, or drafting-process guidance.
 
 Extract the actual wording intended for use from source material or the plan into `assertion`. Write a short précis only in `precis` to help navigate the list. Never use the précis as draft wording. Back every assertion with evidence and record a specific source pointer in `evidence_or_check`. If evidence has not yet been found, mark the assertion for verification and do not present it as established fact.
 
-Required columns:
+Required workbook columns:
 
-```csv
+```text
 include,id,section,precis,assertion,user_edit,status,evidence_or_check
 ```
 

@@ -5,6 +5,7 @@ description = "Reusable document generation and assertions review tools for writ
 requires-python = ">=3.11"
 dependencies = [
     "python-docx>=1.1.2",
+    "openpyxl>=3.1.5",
 ]
 
 [project.optional-dependencies]

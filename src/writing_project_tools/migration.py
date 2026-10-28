@@ -6,7 +6,7 @@ import csv
 import shutil
 from pathlib import Path
 
-from writing_project_tools.assertions_editor import FIELDNAMES
+from writing_project_tools.assertions_store import FIELDNAMES, write_assertions
 from writing_project_tools.scaffold import folder_name_to_slug, get_project_file_names
 
 
@@ -24,14 +24,21 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         f"{slug}-outline.md": f"{slug}-plan.md",
     }
     present = {source: target for source, target in sources.items() if (root / source).is_file()}
-    assertions_path = root / "assertions.csv"
+    legacy_assertions_path = root / "assertions.csv"
+    output_csv_path = root / "outputs" / "assertions.csv"
+    assertions_path = root / "outputs" / "assertions.xlsx"
+    if assertions_path.exists() and (legacy_assertions_path.is_file() or output_csv_path.is_file()):
+        raise FileExistsError(f"Both legacy and current assertions files exist: {assertions_path}")
+    if legacy_assertions_path.is_file() and output_csv_path.is_file():
+        raise FileExistsError("Both root and outputs assertions CSV files exist")
+    source_assertions_path = legacy_assertions_path if legacy_assertions_path.is_file() else output_csv_path
     docx_path = root / "docx_sources.csv"
     gitignore_path = root / ".gitignore"
 
     assertion_rows = None
     assertions_need_update = False
-    if assertions_path.is_file():
-        with assertions_path.open(encoding="utf-8-sig", newline="") as handle:
+    if source_assertions_path.is_file():
+        with source_assertions_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             if reader.fieldnames is None:
                 raise ValueError("assertions.csv has no header")
@@ -40,7 +47,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             if missing:
                 raise ValueError(f"assertions.csv is missing columns: {', '.join(missing)}")
             assertion_rows = list(reader)
-            assertions_need_update = reader.fieldnames != FIELDNAMES
+            assertions_need_update = True
 
     docx_rows = None
     docx_fields = None
@@ -60,17 +67,44 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     backed_up = list(present)
     if gitignore_path.is_file():
         backed_up.append(".gitignore")
-    if assertions_need_update:
-        backed_up.append("assertions.csv")
+    if source_assertions_path.is_file():
+        backed_up.append(source_assertions_path.relative_to(root).as_posix())
     if docx_need_update:
         backed_up.append("docx_sources.csv")
     backup = root / ".writing-project-migration-backup"
+    input_suffixes = {".pdf", ".eml", ".msg", ".mbox", ".emlx", ".txt", ".rtf"}
+    input_files = [path for path in root.iterdir() if path.is_file() and path.suffix.lower() in input_suffixes]
+    legacy_input_dirs = [root / name for name in ("source", "inputs", "input") if (root / name).is_dir()]
+    for directory in legacy_input_dirs:
+        input_files.extend(path for path in directory.rglob("*") if path.is_file())
+    input_destinations = [
+        root / "sources" / (path.relative_to(path.parent if path.parent == root else next(directory for directory in legacy_input_dirs if directory in path.parents)))
+        for path in input_files
+    ]
+    deliverable_suffixes = {".csv", ".doc", ".docx", ".xls", ".xlsx", ".xlsm", ".ppt", ".pptx", ".html", ".htm", ".odt", ".ods", ".odp"}
+    deliverables = [
+        path for path in root.iterdir()
+        if path.is_file()
+        and path.suffix.lower() in deliverable_suffixes
+        and path.name not in {"assertions.csv", "docx_sources.csv"}
+        and not path.name.startswith("~$")
+    ]
+    docs_dir = root / "docs"
+    if docs_dir.is_dir():
+        deliverables.extend(path for path in docs_dir.rglob("*") if path.is_file())
+    destinations = [root / "outputs" / (path.relative_to(docs_dir) if docs_dir in path.parents else path.name) for path in deliverables]
     conflicts = [name for name in backed_up if (backup / name).exists()]
+    conflicts.extend(str(destination.relative_to(root)) for destination in destinations + input_destinations if destination.exists())
+    if len(destinations) != len(set(destinations)):
+        conflicts.append("multiple deliverables have the same destination")
+    if len(input_destinations) != len(set(input_destinations)):
+        conflicts.append("multiple source files have the same destination")
     if conflicts:
         raise FileExistsError(f"Migration backup already contains: {', '.join(conflicts)}")
     if backed_up:
         backup.mkdir(exist_ok=True)
         for name in backed_up:
+            (backup / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(root / name, backup / name)
 
     updated: list[str] = []
@@ -93,12 +127,10 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     if gitignore_path.is_file():
         gitignore_path.unlink()
 
-    if assertions_need_update and assertion_rows is not None:
-        with assertions_path.open("w", encoding="utf-8", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
-            writer.writeheader()
-            writer.writerows({field: row.get(field, "") or "" for field in FIELDNAMES} for row in assertion_rows)
-        updated.append("assertions.csv")
+    if source_assertions_path.is_file() and assertion_rows is not None:
+        write_assertions(assertions_path, assertion_rows)
+        source_assertions_path.unlink()
+        updated.append("outputs/assertions.xlsx")
 
     if docx_need_update and docx_rows is not None and docx_fields:
         revised = []
@@ -122,6 +154,25 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             path.write_text(defaults[name], encoding="utf-8")
             created.append(name)
     (root / "outputs").mkdir(exist_ok=True)
+    (root / "sources").mkdir(exist_ok=True)
+    moved_sources: list[str] = []
+    for source, destination in zip(input_files, input_destinations):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(destination))
+        moved_sources.append(destination.relative_to(root).as_posix())
+    for input_dir in legacy_input_dirs:
+        for directory in sorted((path for path in input_dir.rglob("*") if path.is_dir()), key=lambda path: len(path.parts), reverse=True):
+            directory.rmdir()
+        input_dir.rmdir()
+    moved_deliverables: list[str] = []
+    for source, destination in zip(deliverables, destinations):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(destination))
+        moved_deliverables.append(destination.relative_to(root).as_posix())
+    if docs_dir.is_dir():
+        for directory in sorted((path for path in docs_dir.rglob("*") if path.is_dir()), key=lambda path: len(path.parts), reverse=True):
+            directory.rmdir()
+        docs_dir.rmdir()
     return {
         "project_dir": str(root),
         "updated": updated,
@@ -129,4 +180,6 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         "archived_legacy_files": [name for name in backed_up if name in present or name == ".gitignore"],
         "backup_dir": str(backup) if backed_up else None,
         "assertions_migrated": assertions_need_update,
+        "moved_deliverables": moved_deliverables,
+        "moved_sources": moved_sources,
     }

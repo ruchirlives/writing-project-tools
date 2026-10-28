@@ -1,6 +1,5 @@
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-import csv
 import tempfile
 import threading
 import unittest
@@ -58,18 +57,14 @@ class AssertionMergeTests(unittest.TestCase):
         self.assertEqual(merged[0]["assertion"], "Full intended wording.")
         self.assertEqual(merged[0]["status"], "verified")
 
-    def test_legacy_csv_gains_blank_precis_on_save(self) -> None:
+    def test_workbook_roundtrip_preserves_precis_and_wording(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "assertions.csv"
-            path.write_text("include,id,section,assertion,user_edit,status,evidence_or_check\nTRUE,A1,Intro,Full wording,,verify,Source 1\n", encoding="utf-8")
-
+            path = Path(directory) / "assertions.xlsx"
+            write_assertions(path, [{"include": "TRUE", "id": "A1", "section": "Intro", "precis": "Short label", "assertion": "Full wording", "status": "verify", "evidence_or_check": "Source 1"}])
             rows = read_assertions(path)
-            self.assertEqual(rows[0]["precis"], "")
-            write_assertions(path, rows)
-            with path.open(encoding="utf-8", newline="") as handle:
-                saved = csv.DictReader(handle)
-                self.assertEqual(saved.fieldnames, FIELDNAMES)
-                self.assertEqual(next(saved)["assertion"], "Full wording")
+            self.assertEqual(rows[0]["precis"], "Short label")
+            self.assertEqual(rows[0]["assertion"], "Full wording")
+            self.assertEqual(list(rows[0]), FIELDNAMES)
 
     def test_matching_id_preserves_review_state(self) -> None:
         existing = [{

@@ -106,10 +106,15 @@ def build_llm_context(
             ]
         )
 
-    assertions = read_assertions(root / "assertions.csv") if (root / "assertions.csv").exists() else []
+    source_dir = root / "sources"
+    source_files = sorted(path.relative_to(root).as_posix() for path in source_dir.rglob("*") if path.is_file()) if source_dir.is_dir() else []
+    parts.extend(["## Source Files", "", *(f"- {path}" for path in source_files), ""] if source_files else ["## Source Files", "", "_No source files found._", ""])
+
+    assertions_path = root / "outputs" / "assertions.xlsx"
+    assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     parts.extend(
         [
-            "## Assertions CSV",
+            "## Assertions Workbook Data",
             "",
             "```csv",
             csv_table(assertions, FIELDNAMES),
@@ -129,7 +134,7 @@ def build_llm_context(
             "",
             "## Expected Response",
             "",
-            "Return only the requested project artifact or edits, in clean Markdown or CSV as appropriate.",
+            "Return only the requested project artifact or edits, using clean Markdown or the requested data format.",
         ]
     )
 

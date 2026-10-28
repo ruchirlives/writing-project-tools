@@ -238,7 +238,8 @@ def get_workflow_summary() -> dict[str, Any]:
             "{folder-slug}-plan.md",
             "{folder-slug}-draft.md",
         ],
-        "assertions_csv": {
+        "source_folder": "sources/ for input files such as PDFs and email exports",
+        "assertions_workbook": {
             "required_columns": FIELDNAMES,
             "status_values": ["planned", "interpretation", "verify", "verified", "draft_phrase"],
             "guidance": (
@@ -252,7 +253,7 @@ def get_workflow_summary() -> dict[str, Any]:
             "Gather source notes and context.",
             "Identify audience, editorial format, and authorial stance.",
             "Create {folder-slug}-plan.md.",
-            "Extract planned assertions into assertions.csv.",
+            "Extract planned assertions into outputs/assertions.xlsx.",
             "Review assertions through the editor.",
             "Revise the plan from reviewed assertions.",
             "Create {folder-slug}-draft.md from the reviewed plan.",
@@ -286,6 +287,7 @@ def get_workflow_summary() -> dict[str, Any]:
             "get_project_instructions",
             "migrate_writing_project",
             "read_writing_context",
+            "list_project_sources",
             "prepare_project_refresh",
             "apply_project_refresh",
             "write_project_assertions",
@@ -325,6 +327,21 @@ def list_project_markdown(project_dir: str) -> dict[str, Any]:
     return {"files": markdown_files(root)}
 
 
+@mcp.tool()
+def list_project_sources(project_dir: str) -> dict[str, Any]:
+    """List files supplied as project inputs under sources/."""
+    root = project_path(project_dir)
+    return {
+        "project_dir": str(root),
+        "files": source_file_names(root),
+    }
+
+
+def source_file_names(root: Path) -> list[str]:
+    source_dir = root / "sources"
+    return sorted(path.relative_to(root).as_posix() for path in source_dir.rglob("*") if path.is_file()) if source_dir.is_dir() else []
+
+
 def read_markdown_bundle(root: Path, paths: list[str]) -> list[dict[str, str]]:
     files: list[dict[str, str]] = []
     for requested_path in paths:
@@ -359,6 +376,7 @@ def read_writing_context(project_dir: str) -> dict[str, Any]:
     return {
         "project_dir": str(root),
         "files": files,
+        "source_files": source_file_names(root),
         "missing_standard_files": [
             path for path in standard_files if path not in present
         ],
@@ -445,7 +463,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
     standard_files = get_standard_context_files(root.name)
     context_files = read_markdown_bundle(root, standard_files)
 
-    assertions_path = root / "assertions.csv"
+    assertions_path = root / "outputs" / "assertions.xlsx"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
 
     docx_sources = read_docx_sources_from_path(root / "docx_sources.csv")
@@ -455,6 +473,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "project_dir": str(root),
         "instructions": instructions,
         "context_files": context_files,
+        "source_files": source_file_names(root),
         "assertions": {
             "fieldnames": FIELDNAMES,
             "rows": assertions,
@@ -465,8 +484,8 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "recommended_next_steps": [
             f"Use the proposed structure in {file_names['plan']} for drafting.",
-            "Use source material in context.md as the evidence base and follow drafting-instructions.md.",
-            "Respect assertions.csv include flags and user_edit wording when present.",
+            "Use context.md and files in sources/ as the evidence base and follow drafting-instructions.md.",
+            "Respect outputs/assertions.xlsx include flags and user_edit wording when present.",
             "Use precis only to navigate the list; use assertion or user_edit as the claim wording.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
             "Generate the Word version with generate_writing_docs(project_dir).",
@@ -507,8 +526,8 @@ def export_paste_ready_llm_context(
 
 
 @mcp.tool()
-def read_project_assertions(project_dir: str, csv_name: str = "assertions.csv") -> dict[str, Any]:
-    """Read the assertions CSV for a writing project."""
+def read_project_assertions(project_dir: str, csv_name: str = "outputs/assertions.xlsx") -> dict[str, Any]:
+    """Read the assertions workbook for a writing project."""
     csv_path = project_path(project_dir) / csv_name
     return {"fieldnames": FIELDNAMES, "rows": read_assertions(csv_path)}
 
@@ -517,10 +536,11 @@ def read_project_assertions(project_dir: str, csv_name: str = "assertions.csv") 
 def write_project_assertions(
     project_dir: str,
     rows: list[dict[str, Any]],
-    csv_name: str = "assertions.csv",
+    csv_name: str = "outputs/assertions.xlsx",
 ) -> dict[str, Any]:
-    """Write rows to the assertions CSV for a writing project."""
+    """Write rows to the assertions workbook for a writing project."""
     csv_path = project_path(project_dir) / csv_name
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     write_assertions(csv_path, rows)
     return {"path": str(csv_path), "rows": len(rows), "saved": True}
 
@@ -582,17 +602,18 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
     root = project_path(project_dir)
     standard_files = get_standard_context_files(root.name)
     files = read_markdown_bundle(root, standard_files)
-    assertions_path = root / "assertions.csv"
+    assertions_path = root / "outputs" / "assertions.xlsx"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     file_names = get_project_file_names(str(root))
     return {
         "project_dir": str(root),
         "instructions": get_project_instructions(str(root)),
         "files": files,
+        "source_files": source_file_names(root),
         "file_names": file_names,
         "targets": {
             "plan": file_names["plan"],
-            "assertions_csv": "assertions.csv",
+            "assertions_workbook": "outputs/assertions.xlsx",
         },
         "assertions": {
             "fieldnames": FIELDNAMES,
@@ -624,7 +645,7 @@ def apply_project_refresh(
     root = project_path(project_dir)
     file_names = get_project_file_names(str(root))
     plan_path = resolve_markdown_path(root, file_names["plan"])
-    assertions_path = root / "assertions.csv"
+    assertions_path = root / "outputs" / "assertions.xlsx"
     existing_assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     merged_assertions = merge_assertion_review_state(
         existing_assertions,
@@ -633,19 +654,20 @@ def apply_project_refresh(
     )
 
     plan_path.write_text(article_plan, encoding="utf-8")
+    assertions_path.parent.mkdir(parents=True, exist_ok=True)
     write_assertions(assertions_path, merged_assertions)
 
     return {
         "project_dir": str(root),
         "saved": True,
         "plan": str(plan_path),
-        "assertions_csv": str(assertions_path),
+        "assertions_workbook": str(assertions_path),
         "assertions_written": len(merged_assertions),
         "removed_assertions_retained": len(
             [row for row in merged_assertions if row.get("status") == "removed"]
         ),
         "message": (
-            f"Refreshed {file_names['plan']} and assertions.csv. "
+            f"Refreshed {file_names['plan']} and outputs/assertions.xlsx. "
             "Refresh the assertions editor to highlight newly added assertion IDs."
         ),
     }
@@ -654,7 +676,7 @@ def apply_project_refresh(
 @mcp.tool()
 def start_project_editor(
     project_dir: str,
-    csv_name: str = "assertions.csv",
+    csv_name: str = "outputs/assertions.xlsx",
     host: str = "127.0.0.1",
     port: int = 8765,
     open_browser: bool = False,
@@ -747,7 +769,7 @@ def start_project_editor(
 def get_project_editor_status(project_dir: str) -> dict[str, Any]:
     """Return likely editor processes for a writing project."""
     root = project_path(project_dir)
-    csv_path = root / "assertions.csv"
+    csv_path = root / "outputs" / "assertions.xlsx"
     processes = find_editor_processes(csv_path)
     for process in processes:
         url = process.get("url", "")
@@ -761,9 +783,9 @@ def get_project_editor_status(project_dir: str) -> dict[str, Any]:
 
 @mcp.tool()
 def stop_project_editor(project_dir: str) -> dict[str, Any]:
-    """Stop editor processes for a writing project by matching the assertions CSV path."""
+    """Stop editor processes for a writing project by matching the assertions workbook path."""
     root = project_path(project_dir)
-    csv_path = root / "assertions.csv"
+    csv_path = root / "outputs" / "assertions.xlsx"
     processes = find_editor_processes(csv_path)
     stopped: list[int] = []
     for process in processes:

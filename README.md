@@ -2,7 +2,7 @@
 
 Reusable lightweight tooling for evidence-led writing projects.
 
-This toolkit supports a workflow where source notes are held in Markdown, planning documents are generated into Word `.docx` files, and planned assertions are reviewed through a CSV plus checkbox interface.
+This toolkit supports a workflow where source notes are held in Markdown, planning documents are generated into Word `.docx` files, and planned assertions are reviewed through an Excel workbook plus checkbox interface.
 
 ## Install Once
 
@@ -29,7 +29,7 @@ From inside a new empty article folder, run:
 scaffold-writing-project
 ```
 
-This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `assertions.csv`, `docx_sources.csv`, `README.md`, and an `outputs/` folder. The plan includes the proposed structure.
+This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `docx_sources.csv`, `README.md`, a `sources/` folder for input files, and an `outputs/` folder containing `assertions.xlsx`. The plan includes the proposed structure.
 
 `drafting-instructions.md` starts with rules to spell out Scottish Wildlife Trust, support every assertion with evidence, and keep intended wording in `assertion` while using `precis` as a short navigation label.
 
@@ -41,7 +41,7 @@ scaffold-writing-project C:\path\to\NewArticle
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
-To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It moves content from `source-notes.md`, `instructions_for_authors.md`, `colleagues.md`, and the project outline into the current files, adds the `precis` CSV column, updates legacy Word output paths, and removes the project `.gitignore`. Originals are kept in `.writing-project-migration-backup/`. Running it again does not repeat the migration.
+To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It consolidates legacy Markdown, converts `assertions.csv` to `outputs/assertions.xlsx`, moves root-level PDFs and exported emails and files in legacy `input/`, `inputs/`, or `source/` folders into `sources/`, moves existing deliverables from the project root or `docs/` into `outputs/`, updates legacy Word output paths, and removes the project `.gitignore`. Originals of changed source files are kept in `.writing-project-migration-backup/`. The migration checks for destination collisions before moving files and can be run again without duplicating content.
 
 ## Generate Word Documents
 
@@ -60,16 +60,16 @@ Generated `.docx` files are written to `outputs/` unless a different output path
 
 ## Project Editor
 
-Create an `assertions.csv` with these columns:
+The `outputs/assertions.xlsx` workbook has these columns:
 
-```csv
+```text
 include,id,section,precis,assertion,user_edit,status,evidence_or_check
 ```
 
 Run:
 
 ```powershell
-edit-assertions --csv C:\path\to\ArticleProject\assertions.csv
+edit-assertions --workbook C:\path\to\ArticleProject\outputs\assertions.xlsx
 ```
 
 The editor opens the assertions review page at:
@@ -78,7 +78,7 @@ The editor opens the assertions review page at:
 http://127.0.0.1:8765/
 ```
 
-Tick or untick assertions, optionally add revised wording in `user_edit`, and click `Save CSV`.
+Tick or untick assertions, optionally add revised wording in `user_edit`, and click `Save workbook`.
 
 The same server also includes a Markdown editor:
 
@@ -105,6 +105,7 @@ The server exposes tools for working against any project folder by path:
 - `get_project_instructions`
 - `get_workflow_summary`
 - `list_project_markdown`
+- `list_project_sources`
 - `read_writing_context`
 - `read_selected_markdown`
 - `read_project_markdown`
@@ -148,4 +149,4 @@ Example MCP server command:
 
 - The Word generator avoids visible labels such as `Generated from ...`.
 - Document metadata is set from `docx_sources.csv`.
-- The assertions editor preserves excluded assertions in the CSV for audit trail purposes.
+- The assertions editor preserves excluded assertions in the workbook for audit trail purposes.

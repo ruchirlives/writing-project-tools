@@ -6,6 +6,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from writing_project_tools.assertions_store import write_assertions
+
 
 TOOLKIT_DIR = Path(__file__).resolve().parents[2]
 
@@ -27,7 +29,7 @@ def get_project_file_names(folder_name: str) -> dict[str, str]:
             "# Drafting Instructions\n\n"
             "Add the editorial brief, audience, format, tone and other drafting requirements here.\n\n"
             "- Always write Scottish Wildlife Trust in full. Never use SWT as shorthand.\n"
-            "- Back every assertion with evidence. Record the source or verification needed in assertions.csv.\n"
+            "- Back every assertion with evidence. Record the source or verification needed in outputs/assertions.xlsx.\n"
             "- When extracting assertions, preserve the actual phrasing to be used in assertion. Put a short navigation summary in precis.\n"
         ),
         "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
@@ -69,18 +71,6 @@ def get_standard_context_files(folder_name: str) -> list[str]:
     ]
 
 
-ASSERTIONS_FIELDS = [
-    "include",
-    "id",
-    "section",
-    "precis",
-    "assertion",
-    "user_edit",
-    "status",
-    "evidence_or_check",
-]
-
-
 def write_text(path: Path, content: str, force: bool) -> bool:
     if path.exists() and not force:
         return False
@@ -106,6 +96,7 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
     target_dir = target_dir.resolve()
     target_dir.mkdir(parents=True, exist_ok=True)
     (target_dir / "outputs").mkdir(exist_ok=True)
+    (target_dir / "sources").mkdir(exist_ok=True)
 
     folder_name = target_dir.name
     default_files = get_project_file_names(folder_name)
@@ -120,10 +111,12 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
         else:
             skipped.append(filename)
 
-    if write_csv(target_dir / "assertions.csv", ASSERTIONS_FIELDS, [], force):
-        created.append("assertions.csv")
+    assertions_path = target_dir / "outputs" / "assertions.xlsx"
+    if force or not assertions_path.exists():
+        write_assertions(assertions_path, [])
+        created.append("outputs/assertions.xlsx")
     else:
-        skipped.append("assertions.csv")
+        skipped.append("outputs/assertions.xlsx")
 
     if write_csv(
         target_dir / "docx_sources.csv",
@@ -143,7 +136,7 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
         "```\n\n"
         "## Assertions Editor\n\n"
         "```powershell\n"
-        f"edit-assertions --csv \"{target_dir / 'assertions.csv'}\"\n"
+        f"edit-assertions --workbook \"{target_dir / 'outputs' / 'assertions.xlsx'}\"\n"
         "```\n"
     )
     if write_text(target_dir / "README.md", readme, force):

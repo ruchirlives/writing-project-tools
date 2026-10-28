@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import html
 import json
 import threading
@@ -10,21 +9,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from writing_project_tools.assertions_store import FIELDNAMES, read_assertions, write_assertions
+
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
-FIELDNAMES = [
-    "include",
-    "id",
-    "section",
-    "precis",
-    "assertion",
-    "user_edit",
-    "status",
-    "evidence_or_check",
-]
-
-
 PAGE = r"""<!doctype html>
 <html lang="en">
 <head>
@@ -93,12 +82,12 @@ PAGE = r"""<!doctype html>
     <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-[#1f2a24] tracking-tight">Assertions Review</h1>
-        <p class="text-sm text-[#5d6a63] mt-1">Tick assertions to include. Unticked rows stay in the CSV as excluded, so the audit trail remains intact.</p>
+        <p class="text-sm text-[#5d6a63] mt-1">Tick assertions to include. Unticked rows stay in the workbook as excluded, so the audit trail remains intact.</p>
       </div>
       <div class="flex flex-wrap gap-2.5 items-center">
         <button onclick="location.href='/markdown'" type="button" class="px-4.5 py-2.5 text-sm font-semibold border border-[#d9dfd8] bg-white rounded-lg hover:bg-gray-50 hover:border-gray-400 transition cursor-pointer">Markdown editor</button>
         <button id="addAssertionBtn" type="button" class="px-4.5 py-2.5 text-sm font-semibold border border-dashed border-[#1f6f50] text-[#1f6f50] bg-[#e4f1eb] rounded-lg hover:bg-[#d5ebd1] transition cursor-pointer">Add Assertion</button>
-        <button class="px-4.5 py-2.5 text-sm font-semibold bg-[#1f6f50] text-white rounded-lg hover:bg-[#195a41] transition cursor-pointer" id="save">Save CSV</button>
+        <button class="px-4.5 py-2.5 text-sm font-semibold bg-[#1f6f50] text-white rounded-lg hover:bg-[#195a41] transition cursor-pointer" id="save">Save workbook</button>
       </div>
     </div>
     <div class="max-w-[1600px] mx-auto flex flex-wrap gap-3 items-center mt-4 border-t border-[#d9dfd8]/50 pt-4">
@@ -345,7 +334,7 @@ PAGE = r"""<!doctype html>
 
     async function loadRows() {
       const response = await fetch('/api/assertions');
-      if (!response.ok) throw new Error('Could not load assertions CSV');
+      if (!response.ok) throw new Error('Could not load assertions workbook');
       rows = await response.json();
       updateNewRowState(rows);
       renderFilters();
@@ -925,24 +914,9 @@ MARKDOWN_PAGE = r"""<!doctype html>
 """
 
 
-def read_assertions(csv_path: Path) -> list[dict[str, str]]:
-    with csv_path.open("r", encoding="utf-8", newline="") as handle:
-        return [{field: row.get(field, "") or "" for field in FIELDNAMES} for row in csv.DictReader(handle)]
-
-
-def write_assertions(csv_path: Path, rows: list[dict[str, str]]) -> None:
-    cleaned_rows = []
-    for row in rows:
-        cleaned_rows.append({field: str(row.get(field, "")) for field in FIELDNAMES})
-
-    with csv_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(cleaned_rows)
-
-
 def project_root_for(csv_path: Path) -> Path:
-    return csv_path.parent.resolve()
+    parent = csv_path.parent.resolve()
+    return parent.parent if parent.name == "outputs" else parent
 
 
 def markdown_files(root: Path) -> list[str]:
@@ -1055,8 +1029,8 @@ def create_handler(csv_path: Path) -> type[BaseHTTPRequestHandler]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Edit assertions.csv and project Markdown files with a local UI.")
-    parser.add_argument("--csv", default="assertions.csv", help="Path to the assertions CSV.")
+    parser = argparse.ArgumentParser(description="Edit assertions.xlsx and project Markdown files with a local UI.")
+    parser.add_argument("--workbook", "--csv", dest="csv", default="outputs/assertions.xlsx", help="Path to the assertions workbook.")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Host to bind.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to bind.")
     parser.add_argument("--no-open", action="store_true", help="Do not open a browser automatically.")
@@ -1065,9 +1039,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    print(f"Starting writing project editor with CSV argument: {args.csv}", flush=True)
+    print(f"Starting writing project editor with workbook argument: {args.csv}", flush=True)
     csv_path = Path(args.csv).resolve()
-    print(f"Resolved assertions CSV path: {csv_path}", flush=True)
+    print(f"Resolved assertions workbook path: {csv_path}", flush=True)
     if not csv_path.exists():
         raise FileNotFoundError(f"Missing {csv_path}")
 
