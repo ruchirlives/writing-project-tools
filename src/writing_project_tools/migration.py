@@ -26,6 +26,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     present = {source: target for source, target in sources.items() if (root / source).is_file()}
     assertions_path = root / "assertions.csv"
     docx_path = root / "docx_sources.csv"
+    gitignore_path = root / ".gitignore"
 
     assertion_rows = None
     assertions_need_update = False
@@ -57,6 +58,8 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             )
 
     backed_up = list(present)
+    if gitignore_path.is_file():
+        backed_up.append(".gitignore")
     if assertions_need_update:
         backed_up.append("assertions.csv")
     if docx_need_update:
@@ -86,6 +89,9 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             if target not in updated:
                 updated.append(target)
         (root / source).unlink()
+
+    if gitignore_path.is_file():
+        gitignore_path.unlink()
 
     if assertions_need_update and assertion_rows is not None:
         with assertions_path.open("w", encoding="utf-8", newline="") as handle:
@@ -120,7 +126,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         "project_dir": str(root),
         "updated": updated,
         "created": created,
-        "archived_legacy_files": list(present),
+        "archived_legacy_files": [name for name in backed_up if name in present or name == ".gitignore"],
         "backup_dir": str(backup) if backed_up else None,
         "assertions_migrated": assertions_need_update,
     }

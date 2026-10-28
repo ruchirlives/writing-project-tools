@@ -41,7 +41,7 @@ scaffold-writing-project C:\path\to\NewArticle
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
-To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It moves content from `source-notes.md`, `instructions_for_authors.md`, `colleagues.md`, and the project outline into the current files, adds the `precis` CSV column, updates legacy Word output paths, and keeps originals in `.writing-project-migration-backup/`. Running it again does not repeat the migration.
+To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It moves content from `source-notes.md`, `instructions_for_authors.md`, `colleagues.md`, and the project outline into the current files, adds the `precis` CSV column, updates legacy Word output paths, and removes the project `.gitignore`. Originals are kept in `.writing-project-migration-backup/`. Running it again does not repeat the migration.
 
 ## Generate Word Documents
 

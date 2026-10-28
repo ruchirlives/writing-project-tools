@@ -16,6 +16,7 @@ class MigrationTests(unittest.TestCase):
             (root / "colleagues.md").write_text("# Colleagues\n\nReviewer A\n", encoding="utf-8")
             (root / "peatland-action-outline.md").write_text("# Outline\n\n- Main point A\n", encoding="utf-8")
             (root / "context.md").write_text("# Context\n\nExisting context\n", encoding="utf-8")
+            (root / ".gitignore").write_text("*.docx\n", encoding="utf-8")
             (root / "assertions.csv").write_text(
                 "include,id,section,assertion,user_edit,status,evidence_or_check\n"
                 "FALSE,A1,Intro,Exact intended wording,Reviewed wording,verified,Source A\n",
@@ -30,7 +31,13 @@ class MigrationTests(unittest.TestCase):
 
             result = migrate_project(root)
 
-            self.assertEqual(len(result["archived_legacy_files"]), 4)
+            self.assertEqual(len(result["archived_legacy_files"]), 5)
+            self.assertIn(".gitignore", result["archived_legacy_files"])
+            self.assertFalse((root / ".gitignore").exists())
+            self.assertEqual(
+                (root / ".writing-project-migration-backup" / ".gitignore").read_text(encoding="utf-8"),
+                "*.docx\n",
+            )
             self.assertFalse((root / "peatland-action-outline.md").exists())
             self.assertIn("Existing context", (root / "context.md").read_text(encoding="utf-8"))
             self.assertIn("Evidence A", (root / "context.md").read_text(encoding="utf-8"))
