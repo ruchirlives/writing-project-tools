@@ -6,7 +6,7 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 
 ## Core Operating Rules
 
-- Treat context.md and files in sources/ as the evidence base. Do not treat the project plan as the original evidence.
+- Treat sources/context.md and other files in sources/ as the evidence base. Do not treat the project plan as the original evidence.
 - Check relevant source files before changing the plan or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
@@ -59,10 +59,10 @@ edit-assertions --workbook "C:\path\to\project\assertions.xlsx"
 
 Recommended files (plan and draft are named after the project folder):
 
-- `context.md` for source material, evidence, notes, research, and initial ideas.
+- `sources/context.md` for source material, evidence, notes, research, and initial ideas.
 - `sources/` for supplied input files such as PDFs, exported emails, and other reference material.
 - `drafting-instructions.md` for the editorial brief, audience, format, tone, and drafting requirements.
-- `considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
+- `sources/considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
 - `{folder-slug}-plan.md` describing purpose, audience, outputs, considerations, proposed structure, and questions for further input.
 - `{folder-slug}-draft.md` for the draft created from the reviewed plan.
 - `assertions.xlsx` in the project root for the editable assertions list.

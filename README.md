@@ -29,7 +29,7 @@ From inside a new empty article folder, run:
 scaffold-writing-project
 ```
 
-This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `docx_sources.csv`, `README.md`, a `sources/` folder for input files, a root-level `assertions.xlsx` workbook, and an `outputs/` folder for deliverables. The plan includes the proposed structure.
+This creates `sources/context.md` and `sources/considerations.md` alongside other input files in `sources/`, plus `drafting-instructions.md`, project-named plan and draft Markdown files, `docx_sources.csv`, `README.md`, a root-level `assertions.xlsx` workbook, and an `outputs/` folder for deliverables. The plan includes the proposed structure.
 
 `drafting-instructions.md` starts with rules to spell out Scottish Wildlife Trust, support every assertion with evidence, and keep intended wording in `assertion` while using `precis` as a short navigation label.
 
@@ -41,7 +41,7 @@ scaffold-writing-project C:\path\to\NewArticle
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
-To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It consolidates legacy Markdown, moves `outputs/assertions.xlsx` to root-level `assertions.xlsx` without rewriting the workbook, or converts legacy assertions CSV files to that root-level workbook, moves root-level PDFs and exported emails and files in legacy `input/`, `inputs/`, or `source/` folders into `sources/`, moves existing deliverables from the project root or `docs/` into `outputs/`, updates legacy Word output paths, and removes the project `.gitignore`. Originals of changed source files are kept in `.writing-project-migration-backup/`. It also updates old assertions workbook paths in project README and instruction files. The migration checks for destination collisions before moving files and can be run again without duplicating content.
+To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It consolidates legacy Markdown, moves root-level `context.md` and `considerations.md` into `sources/`, moves `outputs/assertions.xlsx` to root-level `assertions.xlsx` without rewriting the workbook, or converts legacy assertions CSV files to that root-level workbook, moves root-level PDFs and exported emails and files in legacy `input/`, `inputs/`, or `source/` folders into `sources/`, moves existing deliverables from the project root or `docs/` into `outputs/`, updates legacy Word output paths, and removes the project `.gitignore`. Originals of changed source files are kept in `.writing-project-migration-backup/`. It also updates old assertions and source Markdown paths in project README and instruction files. The migration checks for destination collisions before moving files and can be run again without duplicating content.
 
 To archive a completed project through MCP, call `archive_writing_project(project_dir)`. It creates and validates `sources.zip`, removes the original `sources/` folder and root-level working Markdown and `docx_sources.csv`, and keeps `assertions.xlsx` and `outputs/`. Any unrelated files are left in place and listed in the result. If `sources.zip` already exists while `sources/` is present, the action stops before changing files.
 

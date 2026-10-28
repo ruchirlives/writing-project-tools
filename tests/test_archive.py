@@ -30,6 +30,8 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual((root / "custom.dat").read_bytes(), b"unrelated")
             self.assertIn("custom.dat", result["kept_other_entries"])
             with ZipFile(root / "sources.zip") as zipped:
+                self.assertIn("sources/context.md", zipped.namelist())
+                self.assertIn("sources/considerations.md", zipped.namelist())
                 self.assertEqual(zipped.read("sources/emails/note.eml"), b"email")
                 self.assertEqual(zipped.read("sources/report.pdf"), b"pdf")
 

@@ -247,9 +247,9 @@ def get_workflow_summary() -> dict[str, Any]:
     return {
         "standard_files_note": "File names are based on the project folder name (e.g., 'Peatland Action' -> 'peatland-action-plan.md')",
         "common_files": [
-            "context.md",
+            "sources/context.md",
             "drafting-instructions.md",
-            "considerations.md",
+            "sources/considerations.md",
             "{folder-slug}-plan.md",
             "{folder-slug}-draft.md",
         ],
@@ -509,7 +509,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "recommended_next_steps": [
             f"Use the proposed structure in {file_names['plan']} for drafting.",
-            "Use context.md and files in sources/ as the evidence base and follow drafting-instructions.md.",
+            "Use sources/context.md and other files in sources/ as the evidence base and follow drafting-instructions.md.",
             "Respect assertions.xlsx include flags and user_edit wording when present.",
             "Use precis only to navigate the list; use assertion or user_edit as the claim wording.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import re
 import shutil
 from pathlib import Path
 
@@ -18,9 +19,9 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     slug = folder_name_to_slug(root.name)
     defaults = get_project_file_names(root.name)
     sources = {
-        "source-notes.md": "context.md",
+        "source-notes.md": "sources/context.md",
         "instructions_for_authors.md": "drafting-instructions.md",
-        "colleagues.md": "considerations.md",
+        "colleagues.md": "sources/considerations.md",
         f"{slug}-outline.md": f"{slug}-plan.md",
     }
     present = {source: target for source, target in sources.items() if (root / source).is_file()}
@@ -40,6 +41,8 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         if path.is_file():
             current = path.read_text(encoding="utf-8")
             revised = current.replace("outputs/assertions.xlsx", "assertions.xlsx").replace("outputs\\assertions.xlsx", "assertions.xlsx")
+            for filename in ("context.md", "considerations.md"):
+                revised = re.sub(rf"(?<![\w/\\-]){re.escape(filename)}", f"sources/{filename}", revised)
             if revised != current:
                 instruction_updates[name] = revised
 
@@ -75,6 +78,8 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             )
 
     backed_up = list(present)
+    root_source_files = [name for name in ("context.md", "considerations.md") if (root / name).is_file()]
+    backed_up.extend(root_source_files)
     backed_up.extend(instruction_updates)
     if gitignore_path.is_file():
         backed_up.append(".gitignore")
@@ -122,6 +127,18 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     for name, content in instruction_updates.items():
         (root / name).write_text(content, encoding="utf-8")
         updated.append(name)
+    (root / "sources").mkdir(exist_ok=True)
+    for name in root_source_files:
+        destination = root / "sources" / name
+        original = root / name
+        if destination.exists():
+            content = destination.read_text(encoding="utf-8").rstrip()
+            content += f"\n\n## Imported from root {name}\n\n" + original.read_text(encoding="utf-8").strip() + "\n"
+            destination.write_text(content, encoding="utf-8")
+            original.unlink()
+        else:
+            shutil.move(str(original), str(destination))
+        updated.append(f"sources/{name}")
     for source, target in present.items():
         target_path = root / target
         if target_path.is_file():
@@ -165,7 +182,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         updated.append("docx_sources.csv")
 
     created: list[str] = []
-    for name in ("context.md", "drafting-instructions.md", "considerations.md"):
+    for name in ("sources/context.md", "drafting-instructions.md", "sources/considerations.md"):
         path = root / name
         if not path.exists():
             path.write_text(defaults[name], encoding="utf-8")

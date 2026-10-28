@@ -24,7 +24,7 @@ def get_project_file_names(folder_name: str) -> dict[str, str]:
     """Get project file names using folder name as prefix."""
     slug = folder_name_to_slug(folder_name)
     return {
-        "context.md": "# Context\n\nAdd source material, evidence, notes, interviews, meetings, research and initial ideas here.\n",
+        "sources/context.md": "# Context\n\nAdd source material, evidence, notes, interviews, meetings, research and initial ideas here.\n",
         "drafting-instructions.md": (
             "# Drafting Instructions\n\n"
             "Add the editorial brief, audience, format, tone and other drafting requirements here.\n\n"
@@ -32,7 +32,7 @@ def get_project_file_names(folder_name: str) -> dict[str, str]:
             "- Back every assertion with evidence. Record the source or verification needed in assertions.xlsx.\n"
             "- When extracting assertions, preserve the actual phrasing to be used in assertion. Put a short navigation summary in precis.\n"
         ),
-        "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
+        "sources/considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
         f"{slug}-plan.md": f"# {folder_name} Plan For Comment\n\n## Working Title\n\n\n## Proposed Angle\n\n\n## Core Message\n\n\n## Proposed Structure\n\n- Introduction: \n- Main points: \n- Conclusion: \n\n## Voice And Scope\n\n\n## Input Requested\n\n",
         f"{slug}-draft.md": f"# {folder_name} Draft\n\nDraft from the reviewed plan after assertions have been reviewed.\n",
     }
@@ -63,9 +63,9 @@ def get_standard_context_files(folder_name: str) -> list[str]:
     """Get standard context file names using folder name as prefix."""
     slug = folder_name_to_slug(folder_name)
     return [
-        "context.md",
+        "sources/context.md",
         "drafting-instructions.md",
-        "considerations.md",
+        "sources/considerations.md",
         f"{slug}-plan.md",
         f"{slug}-draft.md",
     ]
