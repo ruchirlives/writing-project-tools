@@ -3,16 +3,67 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch, sentinel
 
 from writing_project_tools.assertions_editor import FIELDNAMES, read_assertions, write_assertions
 from writing_project_tools.mcp_server import (
     editor_command,
+    launch_editor_process,
+    read_project_assertions,
+    write_project_assertions,
+    prepare_draft_inputs,
+    prepare_project_refresh,
+    apply_project_refresh,
+    get_project_editor_status,
+    stop_project_editor,
     merge_assertion_review_state,
     wait_for_http,
 )
+from writing_project_tools.llm_context import build_llm_context
+
+
+class RootAssertionsTests(unittest.TestCase):
+    def test_default_helpers_share_root_register_and_preserve_review(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            row = {"include": "FALSE", "id": "ROOT-1", "section": "Intro", "precis": "Label", "assertion": "Exact document wording.", "user_edit": "Reviewed final wording.", "status": "verified", "evidence_or_check": "Source A"}
+            write_project_assertions(str(root), [row])
+            self.assertTrue((root / "assertions.xlsx").is_file())
+            self.assertEqual(read_project_assertions(str(root))["rows"], [row])
+            self.assertEqual(prepare_draft_inputs(str(root))["assertions"]["rows"], [row])
+            self.assertEqual(prepare_project_refresh(str(root))["targets"]["assertions_workbook"], "assertions.xlsx")
+            self.assertIn("Reviewed final wording.", build_llm_context(root))
+            result = apply_project_refresh(str(root), "# Revised plan", [{**row, "include": "TRUE", "user_edit": ""}])
+            self.assertEqual(result["assertions_workbook"], str(root / "assertions.xlsx"))
+            self.assertEqual(read_project_assertions(str(root))["rows"], [row])
+            self.assertFalse((root / "outputs" / "assertions.xlsx").exists())
+            with patch("writing_project_tools.mcp_server.find_editor_processes", return_value=[]) as find:
+                get_project_editor_status(str(root))
+                stop_project_editor(str(root))
+            self.assertEqual([call.args[0] for call in find.call_args_list], [root / "assertions.xlsx"] * 2)
 
 
 class EditorCommandTests(unittest.TestCase):
+    def test_denied_breakaway_retries_without_it(self) -> None:
+        denied = PermissionError("Access denied")
+        denied.winerror = 5
+        with patch("writing_project_tools.mcp_server.os.name", "nt"), patch(
+            "writing_project_tools.mcp_server.editor_creationflags", return_value=0x1000208
+        ), patch("writing_project_tools.mcp_server.subprocess.CREATE_BREAKAWAY_FROM_JOB", 0x1000000, create=True), patch(
+            "writing_project_tools.mcp_server.subprocess.Popen", side_effect=[denied, sentinel.process]
+        ) as popen:
+            result = launch_editor_process(["python"], cwd="project")
+        self.assertIs(result, sentinel.process)
+        self.assertEqual(popen.call_args_list[0].kwargs["creationflags"], 0x1000208)
+        self.assertEqual(popen.call_args_list[1].kwargs["creationflags"], 0x208)
+        self.assertEqual(popen.call_args_list[1].kwargs["cwd"], "project")
+
+    def test_other_launch_errors_are_not_retried(self) -> None:
+        with patch("writing_project_tools.mcp_server.subprocess.Popen", side_effect=FileNotFoundError("python")) as popen:
+            with self.assertRaises(FileNotFoundError):
+                launch_editor_process(["python"])
+        popen.assert_called_once()
+
     def test_csv_path_with_spaces_stays_one_argument(self) -> None:
         csv_path = Path(r"E:\Writing\Session - Staff Conference\assertions.csv")
 

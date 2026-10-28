@@ -8,6 +8,43 @@ from writing_project_tools.assertions_store import read_assertions
 
 
 class MigrationTests(unittest.TestCase):
+    def test_moves_output_workbook_without_rewriting_and_is_repeatable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "outputs").mkdir()
+            old = root / "outputs" / "assertions.xlsx"
+            # Relocation must preserve the complete file, including custom sheets/styles.
+            original = b"workbook bytes that must not be regenerated"
+            old.write_bytes(original)
+            (root / "README.md").write_text('edit-assertions --workbook "outputs/assertions.xlsx"', encoding="utf-8")
+
+            result = migrate_project(root)
+
+            self.assertTrue(result["assertions_migrated"])
+            self.assertEqual((root / "assertions.xlsx").read_bytes(), original)
+            self.assertEqual((root / ".writing-project-migration-backup" / "outputs" / "assertions.xlsx").read_bytes(), original)
+            self.assertFalse(old.exists())
+            self.assertEqual((root / "README.md").read_text(encoding="utf-8"), 'edit-assertions --workbook "assertions.xlsx"')
+            self.assertIn("outputs/assertions.xlsx", (root / ".writing-project-migration-backup" / "README.md").read_text(encoding="utf-8"))
+            second = migrate_project(root)
+            self.assertFalse(second["assertions_migrated"])
+            self.assertFalse(second["moved_deliverables"])
+            self.assertEqual((root / "assertions.xlsx").read_bytes(), original)
+
+    def test_assertions_collisions_leave_all_files_unchanged(self) -> None:
+        for legacy in ("outputs/assertions.xlsx", "outputs/assertions.csv", "assertions.csv"):
+            with self.subTest(legacy=legacy), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "assertions.xlsx").write_bytes(b"reviewed root workbook")
+                old = root / legacy
+                old.parent.mkdir(exist_ok=True)
+                old.write_bytes(b"legacy register")
+                with self.assertRaises(FileExistsError):
+                    migrate_project(root)
+                self.assertEqual((root / "assertions.xlsx").read_bytes(), b"reviewed root workbook")
+                self.assertEqual(old.read_bytes(), b"legacy register")
+                self.assertFalse((root / ".writing-project-migration-backup").exists())
+
     def test_consolidates_legacy_files_and_is_repeatable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "Peatland Action"
@@ -54,7 +91,7 @@ class MigrationTests(unittest.TestCase):
             self.assertIn("Audience A", (root / "drafting-instructions.md").read_text(encoding="utf-8"))
             self.assertIn("Reviewer A", (root / "considerations.md").read_text(encoding="utf-8"))
             self.assertIn("Main point A", (root / "peatland-action-plan.md").read_text(encoding="utf-8"))
-            row = read_assertions(root / "outputs" / "assertions.xlsx")[0]
+            row = read_assertions(root / "assertions.xlsx")[0]
             self.assertEqual(row["precis"], "")
             self.assertEqual(row["assertion"], "Exact intended wording")
             self.assertEqual(row["include"], "FALSE")
@@ -114,9 +151,9 @@ class MigrationTests(unittest.TestCase):
             result = migrate_project(root)
 
             self.assertFalse(old_csv.exists())
-            self.assertEqual(read_assertions(root / "outputs" / "assertions.xlsx")[0]["precis"], "Short label")
+            self.assertEqual(read_assertions(root / "assertions.xlsx")[0]["precis"], "Short label")
             self.assertTrue((root / ".writing-project-migration-backup" / "outputs" / "assertions.csv").exists())
-            self.assertIn("outputs/assertions.xlsx", result["updated"])
+            self.assertIn("assertions.xlsx", result["updated"])
 
     def test_source_collision_does_not_move_input(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

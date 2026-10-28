@@ -26,18 +26,26 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     present = {source: target for source, target in sources.items() if (root / source).is_file()}
     legacy_assertions_path = root / "assertions.csv"
     output_csv_path = root / "outputs" / "assertions.csv"
-    assertions_path = root / "outputs" / "assertions.xlsx"
-    if assertions_path.exists() and (legacy_assertions_path.is_file() or output_csv_path.is_file()):
-        raise FileExistsError(f"Both legacy and current assertions files exist: {assertions_path}")
-    if legacy_assertions_path.is_file() and output_csv_path.is_file():
-        raise FileExistsError("Both root and outputs assertions CSV files exist")
-    source_assertions_path = legacy_assertions_path if legacy_assertions_path.is_file() else output_csv_path
+    output_workbook_path = root / "outputs" / "assertions.xlsx"
+    assertions_path = root / "assertions.xlsx"
+    candidates = [path for path in (assertions_path, output_workbook_path, legacy_assertions_path, output_csv_path) if path.exists()]
+    if len(candidates) > 1:
+        raise FileExistsError("Multiple assertions files exist; resolve the conflict before migration: " + ", ".join(str(path) for path in candidates))
+    source_assertions_path = next((path for path in (output_workbook_path, legacy_assertions_path, output_csv_path) if path.is_file()), output_csv_path)
     docx_path = root / "docx_sources.csv"
     gitignore_path = root / ".gitignore"
+    instruction_updates = {}
+    for name in ("README.md", "AGENTS.md", "drafting-instructions.md"):
+        path = root / name
+        if path.is_file():
+            current = path.read_text(encoding="utf-8")
+            revised = current.replace("outputs/assertions.xlsx", "assertions.xlsx").replace("outputs\\assertions.xlsx", "assertions.xlsx")
+            if revised != current:
+                instruction_updates[name] = revised
 
     assertion_rows = None
     assertions_need_update = False
-    if source_assertions_path.is_file():
+    if source_assertions_path.is_file() and source_assertions_path.suffix == ".csv":
         with source_assertions_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             if reader.fieldnames is None:
@@ -48,6 +56,8 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
                 raise ValueError(f"assertions.csv is missing columns: {', '.join(missing)}")
             assertion_rows = list(reader)
             assertions_need_update = True
+    elif source_assertions_path.is_file():
+        assertions_need_update = True
 
     docx_rows = None
     docx_fields = None
@@ -65,6 +75,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             )
 
     backed_up = list(present)
+    backed_up.extend(instruction_updates)
     if gitignore_path.is_file():
         backed_up.append(".gitignore")
     if source_assertions_path.is_file():
@@ -86,7 +97,7 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
         path for path in root.iterdir()
         if path.is_file()
         and path.suffix.lower() in deliverable_suffixes
-        and path.name not in {"assertions.csv", "docx_sources.csv"}
+        and path.name not in {"assertions.xlsx", "assertions.csv", "docx_sources.csv"}
         and not path.name.startswith("~$")
     ]
     docs_dir = root / "docs"
@@ -108,6 +119,9 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
             shutil.copy2(root / name, backup / name)
 
     updated: list[str] = []
+    for name, content in instruction_updates.items():
+        (root / name).write_text(content, encoding="utf-8")
+        updated.append(name)
     for source, target in present.items():
         target_path = root / target
         if target_path.is_file():
@@ -127,10 +141,13 @@ def migrate_project(project_dir: Path) -> dict[str, object]:
     if gitignore_path.is_file():
         gitignore_path.unlink()
 
-    if source_assertions_path.is_file() and assertion_rows is not None:
-        write_assertions(assertions_path, assertion_rows)
+    if source_assertions_path.is_file():
+        if assertion_rows is not None:
+            write_assertions(assertions_path, assertion_rows)
+        else:
+            shutil.copy2(source_assertions_path, assertions_path)
         source_assertions_path.unlink()
-        updated.append("outputs/assertions.xlsx")
+        updated.append("assertions.xlsx")
 
     if docx_need_update and docx_rows is not None and docx_fields:
         revised = []

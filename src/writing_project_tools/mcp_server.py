@@ -142,6 +142,20 @@ def editor_creationflags() -> int:
     return flags
 
 
+def launch_editor_process(command: list[str], **kwargs: Any) -> subprocess.Popen[bytes]:
+    """Prefer an independent process, but tolerate jobs that forbid breakaway."""
+    flags = editor_creationflags()
+    try:
+        return subprocess.Popen(command, creationflags=flags, **kwargs)
+    except OSError as exc:
+        breakaway = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
+        if os.name != "nt" or exc.winerror != 5 or not flags & breakaway:
+            raise
+        # Windows jobs can disallow breakaway even when Python and the project
+        # are accessible. Retry only that specific process-creation failure.
+        return subprocess.Popen(command, creationflags=flags & ~breakaway, **kwargs)
+
+
 def find_editor_processes(csv_path: Path) -> list[dict[str, Any]]:
     csv_text = str(csv_path)
     ps_csv = "'" + csv_text.replace("'", "''") + "'"
@@ -253,7 +267,7 @@ def get_workflow_summary() -> dict[str, Any]:
             "Gather source notes and context.",
             "Identify audience, editorial format, and authorial stance.",
             "Create {folder-slug}-plan.md.",
-            "Extract planned assertions into outputs/assertions.xlsx.",
+            "Extract planned assertions into assertions.xlsx.",
             "Review assertions through the editor.",
             "Revise the plan from reviewed assertions.",
             "Create {folder-slug}-draft.md from the reviewed plan.",
@@ -463,7 +477,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
     standard_files = get_standard_context_files(root.name)
     context_files = read_markdown_bundle(root, standard_files)
 
-    assertions_path = root / "outputs" / "assertions.xlsx"
+    assertions_path = root / "assertions.xlsx"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
 
     docx_sources = read_docx_sources_from_path(root / "docx_sources.csv")
@@ -485,7 +499,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "recommended_next_steps": [
             f"Use the proposed structure in {file_names['plan']} for drafting.",
             "Use context.md and files in sources/ as the evidence base and follow drafting-instructions.md.",
-            "Respect outputs/assertions.xlsx include flags and user_edit wording when present.",
+            "Respect assertions.xlsx include flags and user_edit wording when present.",
             "Use precis only to navigate the list; use assertion or user_edit as the claim wording.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
             "Generate the Word version with generate_writing_docs(project_dir).",
@@ -526,7 +540,7 @@ def export_paste_ready_llm_context(
 
 
 @mcp.tool()
-def read_project_assertions(project_dir: str, csv_name: str = "outputs/assertions.xlsx") -> dict[str, Any]:
+def read_project_assertions(project_dir: str, csv_name: str = "assertions.xlsx") -> dict[str, Any]:
     """Read the assertions workbook for a writing project."""
     csv_path = project_path(project_dir) / csv_name
     return {"fieldnames": FIELDNAMES, "rows": read_assertions(csv_path)}
@@ -536,7 +550,7 @@ def read_project_assertions(project_dir: str, csv_name: str = "outputs/assertion
 def write_project_assertions(
     project_dir: str,
     rows: list[dict[str, Any]],
-    csv_name: str = "outputs/assertions.xlsx",
+    csv_name: str = "assertions.xlsx",
 ) -> dict[str, Any]:
     """Write rows to the assertions workbook for a writing project."""
     csv_path = project_path(project_dir) / csv_name
@@ -602,7 +616,7 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
     root = project_path(project_dir)
     standard_files = get_standard_context_files(root.name)
     files = read_markdown_bundle(root, standard_files)
-    assertions_path = root / "outputs" / "assertions.xlsx"
+    assertions_path = root / "assertions.xlsx"
     assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     file_names = get_project_file_names(str(root))
     return {
@@ -613,7 +627,7 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "targets": {
             "plan": file_names["plan"],
-            "assertions_workbook": "outputs/assertions.xlsx",
+            "assertions_workbook": "assertions.xlsx",
         },
         "assertions": {
             "fieldnames": FIELDNAMES,
@@ -645,7 +659,7 @@ def apply_project_refresh(
     root = project_path(project_dir)
     file_names = get_project_file_names(str(root))
     plan_path = resolve_markdown_path(root, file_names["plan"])
-    assertions_path = root / "outputs" / "assertions.xlsx"
+    assertions_path = root / "assertions.xlsx"
     existing_assertions = read_assertions(assertions_path) if assertions_path.exists() else []
     merged_assertions = merge_assertion_review_state(
         existing_assertions,
@@ -667,7 +681,7 @@ def apply_project_refresh(
             [row for row in merged_assertions if row.get("status") == "removed"]
         ),
         "message": (
-            f"Refreshed {file_names['plan']} and outputs/assertions.xlsx. "
+            f"Refreshed {file_names['plan']} and assertions.xlsx. "
             "Refresh the assertions editor to highlight newly added assertion IDs."
         ),
     }
@@ -676,7 +690,7 @@ def apply_project_refresh(
 @mcp.tool()
 def start_project_editor(
     project_dir: str,
-    csv_name: str = "outputs/assertions.xlsx",
+    csv_name: str = "assertions.xlsx",
     host: str = "127.0.0.1",
     port: int = 8765,
     open_browser: bool = False,
@@ -707,7 +721,7 @@ def start_project_editor(
 
     log_path = project_log_path(root, selected_port)
     with log_path.open("w", encoding="utf-8") as log_handle:
-        process = subprocess.Popen(
+        process = launch_editor_process(
             command,
             cwd=root,
             env=editor_environment(),
@@ -715,7 +729,6 @@ def start_project_editor(
             stdout=log_handle,
             stderr=subprocess.STDOUT,
             close_fds=True,
-            creationflags=editor_creationflags(),
         )
 
     if not wait_for_process_http(process, url, timeout=startup_timeout):
@@ -769,7 +782,7 @@ def start_project_editor(
 def get_project_editor_status(project_dir: str) -> dict[str, Any]:
     """Return likely editor processes for a writing project."""
     root = project_path(project_dir)
-    csv_path = root / "outputs" / "assertions.xlsx"
+    csv_path = root / "assertions.xlsx"
     processes = find_editor_processes(csv_path)
     for process in processes:
         url = process.get("url", "")
@@ -785,7 +798,7 @@ def get_project_editor_status(project_dir: str) -> dict[str, Any]:
 def stop_project_editor(project_dir: str) -> dict[str, Any]:
     """Stop editor processes for a writing project by matching the assertions workbook path."""
     root = project_path(project_dir)
-    csv_path = root / "outputs" / "assertions.xlsx"
+    csv_path = root / "assertions.xlsx"
     processes = find_editor_processes(csv_path)
     stopped: list[int] = []
     for process in processes:

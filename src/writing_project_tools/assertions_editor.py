@@ -1030,7 +1030,7 @@ def create_handler(csv_path: Path) -> type[BaseHTTPRequestHandler]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Edit assertions.xlsx and project Markdown files with a local UI.")
-    parser.add_argument("--workbook", "--csv", dest="csv", default="outputs/assertions.xlsx", help="Path to the assertions workbook.")
+    parser.add_argument("--workbook", "--csv", dest="csv", default="assertions.xlsx", help="Path to the assertions workbook.")
     parser.add_argument("--host", default=DEFAULT_HOST, help="Host to bind.")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to bind.")
     parser.add_argument("--no-open", action="store_true", help="Do not open a browser automatically.")

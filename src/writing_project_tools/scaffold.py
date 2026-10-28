@@ -29,7 +29,7 @@ def get_project_file_names(folder_name: str) -> dict[str, str]:
             "# Drafting Instructions\n\n"
             "Add the editorial brief, audience, format, tone and other drafting requirements here.\n\n"
             "- Always write Scottish Wildlife Trust in full. Never use SWT as shorthand.\n"
-            "- Back every assertion with evidence. Record the source or verification needed in outputs/assertions.xlsx.\n"
+            "- Back every assertion with evidence. Record the source or verification needed in assertions.xlsx.\n"
             "- When extracting assertions, preserve the actual phrasing to be used in assertion. Put a short navigation summary in precis.\n"
         ),
         "considerations.md": "# Considerations\n\nAdd authorial stance, risks, constraints and things to avoid here.\n",
@@ -94,6 +94,12 @@ def run(command: list[str], cwd: Path) -> None:
 
 def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_uv: bool = True) -> dict[str, object]:
     target_dir = target_dir.resolve()
+    legacy_assertions = [
+        path for path in (target_dir / "outputs" / "assertions.xlsx", target_dir / "outputs" / "assertions.csv", target_dir / "assertions.csv")
+        if path.exists()
+    ]
+    if legacy_assertions:
+        raise FileExistsError("Legacy assertions files exist; run migrate_writing_project before scaffolding: " + ", ".join(str(path) for path in legacy_assertions))
     target_dir.mkdir(parents=True, exist_ok=True)
     (target_dir / "outputs").mkdir(exist_ok=True)
     (target_dir / "sources").mkdir(exist_ok=True)
@@ -111,12 +117,12 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
         else:
             skipped.append(filename)
 
-    assertions_path = target_dir / "outputs" / "assertions.xlsx"
+    assertions_path = target_dir / "assertions.xlsx"
     if force or not assertions_path.exists():
         write_assertions(assertions_path, [])
-        created.append("outputs/assertions.xlsx")
+        created.append("assertions.xlsx")
     else:
-        skipped.append("outputs/assertions.xlsx")
+        skipped.append("assertions.xlsx")
 
     if write_csv(
         target_dir / "docx_sources.csv",
@@ -136,7 +142,7 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
         "```\n\n"
         "## Assertions Editor\n\n"
         "```powershell\n"
-        f"edit-assertions --workbook \"{target_dir / 'outputs' / 'assertions.xlsx'}\"\n"
+        f"edit-assertions --workbook \"{target_dir / 'assertions.xlsx'}\"\n"
         "```\n"
     )
     if write_text(target_dir / "README.md", readme, force):
