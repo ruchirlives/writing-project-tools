@@ -151,12 +151,6 @@ def scaffold(target_dir: Path, force: bool = False, install: bool = False, use_u
     else:
         skipped.append("README.md")
 
-    gitignore = ".venv/\n__pycache__/\n*.py[cod]\n~$*.docx\n"
-    if write_text(target_dir / ".gitignore", gitignore, force):
-        created.append(".gitignore")
-    else:
-        skipped.append(".gitignore")
-
     if install:
         if use_uv:
             run(["uv", "venv"], target_dir)

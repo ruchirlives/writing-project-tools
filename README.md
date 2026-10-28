@@ -29,7 +29,7 @@ From inside a new empty article folder, run:
 scaffold-writing-project
 ```
 
-This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `assertions.csv`, `docx_sources.csv`, `README.md`, `.gitignore`, and an `outputs/` folder. The plan includes the proposed structure.
+This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `assertions.csv`, `docx_sources.csv`, `README.md`, and an `outputs/` folder. The plan includes the proposed structure.
 
 `drafting-instructions.md` starts with rules to spell out Scottish Wildlife Trust, support every assertion with evidence, and keep intended wording in `assertion` while using `precis` as a short navigation label.
 
