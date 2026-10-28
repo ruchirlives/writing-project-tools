@@ -26,6 +26,7 @@ Use these `writing-project-tools` MCP helpers when available:
 - `get_workflow_summary()` returns a concise structured summary of files, assertion rules, workflow steps, and core helpers.
 - `scaffold_article_project(project_dir, force=False)` creates missing standard project files without overwriting by default.
 - `migrate_writing_project(project_dir)` consolidates legacy Markdown and CSV files, moves input files into `sources/` and deliverables into `outputs/`, removes the project `.gitignore`, and backs up changed source files.
+- `archive_writing_project(project_dir)` zips `sources/`, removes working Markdown and Word config, and keeps `assertions.xlsx` and `outputs/`.
 - `list_project_sources(project_dir)` lists input files in `sources/`.
 - `list_project_markdown(project_dir)` lists Markdown files in the project folder.
 - `read_writing_context(project_dir)` reads the standard writing-project Markdown files that exist.
@@ -37,6 +38,8 @@ Use these `writing-project-tools` MCP helpers when available:
 - `export_paste_ready_llm_context(project_dir, output="llm-context.md", task="draft")` writes that context bundle into the project folder.
 - `read_project_assertions(project_dir, csv_name="assertions.xlsx")` reads assertions.
 - `write_project_assertions(project_dir, rows, csv_name="assertions.xlsx")` writes assertions.
+- `update_project_assertions(project_dir, rows)` upserts by `id`, preserves verified rows, and marks new rows `draft_phrase`.
+- `reset_project_assertions(project_dir)` clears all rows and leaves a blank assertions workbook.
 - `read_docx_sources(project_dir, csv_name="docx_sources.csv")` reads Word generation config.
 - `write_docx_sources(project_dir, rows, csv_name="docx_sources.csv")` writes Word generation config.
 - `generate_writing_docs(project_dir, config="docx_sources.csv")` generates Word documents.
@@ -131,10 +134,10 @@ Column guidance:
 - `precis`: brief shorthand for locating the claim in the list; not wording for the draft.
 - `assertion`: actual source or planned wording intended for use, not a paraphrased summary.
 - `user_edit`: optional revised wording; leave blank when not needed.
-- `status`: one of `verify`, `verified`, or `draft_phrase`.
+- `status`: new assertions start as `draft_phrase`; mark a reviewed assertion `verified` when its wording and evidence are approved.
 - `evidence_or_check`: specific evidence pointer or, for an unverified claim, the verification task.
 
-Use `read_writing_context(project_dir)` before generating assertions. Save generated rows with `write_project_assertions(project_dir, rows)`.
+Use `read_writing_context(project_dir)` before generating assertions. Save new or revised rows with `update_project_assertions(project_dir, rows)` so verified items remain unchanged. Use `reset_project_assertions(project_dir)` only when the user wants to start with an empty list.
 
 ## Evidence Discipline
 
