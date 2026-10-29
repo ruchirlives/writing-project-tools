@@ -40,6 +40,7 @@ Use these `writing-project-tools` MCP helpers when available:
 - `read_docx_sources(project_dir, csv_name="docx_sources.csv")` reads Word generation config.
 - `write_docx_sources(project_dir, rows, csv_name="docx_sources.csv")` writes Word generation config.
 - `generate_writing_docs(project_dir, config="docx_sources.csv")` generates Word documents.
+- `generate_editable_table(project_dir, title, columns, rows, sources=None, output="outputs/editable-table.html", description="", evidence_note="", overwrite=False)` creates a standalone editable HTML table and companion JSON in the target project. Columns and source references are configurable.
 - `start_project_editor(project_dir, csv_name="assertions.xlsx")` starts the browser-based assertions and Markdown editor.
 - `get_project_editor_status(project_dir)` checks whether a project editor is recorded and reachable.
 - `stop_project_editor(project_dir)` stops the recorded project editor.
@@ -170,3 +171,21 @@ When preparing Markdown for Word conversion:
 - Ensure the document reads naturally as a working Word document before generating `.docx`.
 
 Before sharing generated documents, check that they do not contain visible generator labels and that they read like natural working documents.
+
+
+## Local Editable Evidence Tables
+
+For an editable local action table or evidence matrix, use `generate_editable_table`.
+The repository skill `.agents/skills/editable-evidence-table/SKILL.md` and its
+schema reference describe configurable text, select, number and date fields.
+Read the project's source files before creating the rows. Preserve original
+wording where requested, label proposals and interpretations, and retain exact
+source extracts or specific references. Do not invent priorities or verification.
+
+Pass project_dir explicitly and write generated HTML/JSON to that project's
+outputs folder. Never store project data or saved table JSON in the toolkit or
+skill. The HTML opens without a server; Open JSON connects the companion file
+for saving in Chrome or Edge. Unsupported browsers may download copies instead.
+Existing pairs are refused by default; overwrite=True makes timestamped backups
+but does not merge saved edits. Rebuilding creates a new table identity. Keep
+Word and other deliverables unchanged unless regeneration is requested.

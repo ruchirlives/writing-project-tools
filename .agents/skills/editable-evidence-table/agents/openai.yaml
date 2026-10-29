@@ -1,0 +1,4 @@
+interface:
+  display_name: "Editable Evidence Table"
+  short_description: "Build editable local tables with source traceability"
+  default_prompt: "Use $editable-evidence-table to create a local editable table with the fields I specify and traceable source extracts."

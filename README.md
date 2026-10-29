@@ -58,6 +58,45 @@ create-writing-docs --project C:\path\to\ArticleProject
 
 Generated `.docx` files are written to `outputs/` unless a different output path is set in `docx_sources.csv`. Use `outputs/` for other deliverables too, such as reports, interactive HTML tables, and Excel workbooks.
 
+## Editable Evidence Tables
+
+Create a standalone editable HTML table and companion JSON through the
+`generate_editable_table` MCP helper. Set the title, columns, row values and
+source references for each project. Supported field types are text, select,
+number and date; priority is an optional configurable select field.
+
+The reusable template is
+`src/writing_project_tools/templates/editable_table.html`. The repository skill
+is [.agents/skills/editable-evidence-table/SKILL.md](.agents/skills/editable-evidence-table/SKILL.md);
+its [schema reference](.agents/skills/editable-evidence-table/references/schema.md)
+contains a synthetic example and field definitions.
+
+Pass the target project folder explicitly. Generated HTML, JSON, source extracts
+and real row data belong in that project's `outputs/`, not this toolkit repository.
+Sources can be exact excerpts or project-relative paths with inclusive one-based
+line ranges. The HTML retains original row wording and a source trace alongside
+editable fields. Source snapshots are not independent verification.
+
+Open the generated HTML locally in Chrome or Edge, use **Open JSON** to connect
+the companion file, then edit and **Save**. No server is required. The HTML's
+embedded starting copy does not update after a JSON save. File changes detected
+elsewhere block a normal save; **Save as** keeps a separate copy. This is not
+simultaneous collaborative editing. Unsupported browsers download JSON copies;
+browser recovery drafts and Word exports remain separate.
+
+Existing output files are refused unless `overwrite=True`; explicit regeneration
+backs up both files but does not merge saved browser edits. A rebuild creates a
+new table identity. Preserve saved JSON before regenerating; use a new output
+stem when changing the schema.
+
+Installed CLI fallback:
+
+```powershell
+generate-editable-table --project C:\Writing\Example --spec C:\Writing\Example\table-spec.json --output outputs/review.html
+```
+
+After updating the toolkit, restart the MCP connection to discover the new helper.
+
 ## Project Editor
 
 The `assertions.xlsx` workbook has these columns:
@@ -101,6 +140,7 @@ The server exposes tools for working against any project folder by path:
 - `scaffold_article_project`
 - `migrate_writing_project`
 - `generate_writing_docs`
+- `generate_editable_table`
 - `get_writing_project_instructions`
 - `get_project_instructions`
 - `get_workflow_summary`

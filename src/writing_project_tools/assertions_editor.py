@@ -37,6 +37,24 @@ PAGE = r"""<!doctype html>
     body {
       font-family: Aptos, Segoe UI, Arial, sans-serif;
     }
+    .assertions-table {
+      width: 100%;
+      min-width: 1200px;
+      table-layout: fixed;
+    }
+    .assertions-table td {
+      overflow-wrap: anywhere;
+    }
+    .precis {
+      display: block;
+      box-sizing: border-box;
+      min-height: 58px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow: hidden;
+      resize: none;
+    }
     /* Native dialog styling with clean transition */
     dialog {
       border: none;
@@ -79,7 +97,7 @@ PAGE = r"""<!doctype html>
 </head>
 <body class="bg-[#f7f8f5] text-[#1f2a24] min-h-screen flex flex-col overflow-x-hidden">
   <header class="bg-white border-b border-[#d9dfd8] px-6 py-4.5 shadow-sm">
-    <div class="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-[#1f2a24] tracking-tight">Assertions Review</h1>
         <p class="text-sm text-[#5d6a63] mt-1">Tick assertions to include. Unticked rows stay in the workbook as excluded, so the audit trail remains intact.</p>
@@ -88,9 +106,10 @@ PAGE = r"""<!doctype html>
         <button onclick="location.href='/markdown'" type="button" class="px-4.5 py-2.5 text-sm font-semibold border border-[#d9dfd8] bg-white rounded-lg hover:bg-gray-50 hover:border-gray-400 transition cursor-pointer">Markdown editor</button>
         <button id="addAssertionBtn" type="button" class="px-4.5 py-2.5 text-sm font-semibold border border-dashed border-[#1f6f50] text-[#1f6f50] bg-[#e4f1eb] rounded-lg hover:bg-[#d5ebd1] transition cursor-pointer">Add Assertion</button>
         <button class="px-4.5 py-2.5 text-sm font-semibold bg-[#1f6f50] text-white rounded-lg hover:bg-[#195a41] transition cursor-pointer" id="save">Save workbook</button>
+        <button id="closeEditor" type="button" title="Save any assertion edits and stop the editor process" class="px-4.5 py-2.5 text-sm font-semibold border border-[#d9dfd8] bg-white rounded-lg hover:bg-gray-50 transition cursor-pointer">Close editor</button>
       </div>
     </div>
-    <div class="max-w-[1600px] mx-auto flex flex-wrap gap-3 items-center mt-4 border-t border-[#d9dfd8]/50 pt-4">
+    <div class="w-full flex flex-wrap gap-3 items-center mt-4 border-t border-[#d9dfd8]/50 pt-4">
       <button id="copyTsv" class="px-3.5 py-2 text-xs font-semibold border border-[#d9dfd8] bg-white rounded-md hover:bg-gray-50 transition cursor-pointer">Copy visible TSV</button>
       <button id="includeAll" class="px-3.5 py-2 text-xs font-semibold border border-[#d9dfd8] bg-white rounded-md hover:bg-gray-50 transition cursor-pointer">Include all visible</button>
       <button id="excludeAll" class="px-3.5 py-2 text-xs font-semibold border border-[#d9dfd8] bg-white rounded-md hover:bg-gray-50 transition cursor-pointer">Exclude all visible</button>
@@ -98,21 +117,26 @@ PAGE = r"""<!doctype html>
       <input id="search" type="search" placeholder="Search précis, assertions, evidence or status" class="px-3.5 py-2 text-xs border border-[#d9dfd8] bg-white rounded-md focus:outline-none focus:border-[#1f6f50] flex-grow md:max-w-md">
     </div>
   </header>
-  <main class="flex-grow px-6 py-5 max-w-[1600px] w-full mx-auto overflow-hidden">
+  <main class="flex-grow px-6 py-5 w-full min-w-0">
     <p class="text-sm text-[#5d6a63] mb-3 min-h-[20px] font-medium" id="status"></p>
     <div class="w-full max-w-full overflow-x-auto border border-[#d9dfd8] bg-white rounded-xl shadow-md">
-      <table class="w-full border-collapse table-fixed min-w-[1700px]">
+      <table class="assertions-table w-full border-collapse table-fixed">
+        <colgroup>
+          <col style="width:4%"><col style="width:6%"><col style="width:8%">
+          <col style="width:13%"><col style="width:22%"><col style="width:22%">
+          <col style="width:8%"><col style="width:12%"><col style="width:5%">
+        </colgroup>
         <thead>
           <tr class="bg-[#eef3ef] border-b border-[#d9dfd8]">
-            <th class="w-[70px] text-center py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Include</th>
-            <th class="w-[70px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">ID</th>
-            <th class="w-[150px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Section</th>
-            <th class="w-[190px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Précis</th>
-            <th class="w-[330px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Assertion</th>
-            <th class="w-[500px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">User edit</th>
-            <th class="w-[125px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Status</th>
-            <th class="w-[260px] text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Evidence / check</th>
-            <th class="w-[90px] text-center py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Actions</th>
+            <th class="text-center py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Include</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">ID</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Section</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Précis</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Assertion</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">User edit</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Status</th>
+            <th class="text-left py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Evidence / check</th>
+            <th class="text-center py-3.5 px-3 text-xs font-bold text-[#2d3932] uppercase tracking-wider sticky top-0 bg-[#eef3ef]">Actions</th>
           </tr>
         </thead>
         <tbody id="rows" class="divide-y divide-[#d9dfd8]"></tbody>
@@ -242,7 +266,7 @@ PAGE = r"""<!doctype html>
           <td class="py-3 px-3 text-center align-middle"><input type="checkbox" data-id="${escapeHtml(row.id)}" ${checked} class="w-4 h-4 text-[#1f6f50] border-[#d9dfd8] rounded focus:ring-[#1f6f50] cursor-pointer"></td>
           <td class="py-3 px-3 align-middle font-mono text-xs text-[#5d6a63] whitespace-nowrap">${escapeHtml(row.id)}${newBadge}</td>
           <td class="py-3 px-3 align-middle text-sm font-semibold">${escapeHtml(row.section)}</td>
-          <td class="py-3 px-3"><input type="text" class="precis w-full text-sm border border-[#d9dfd8] rounded-md p-2 focus:outline-none focus:border-[#1f6f50]" data-precis-id="${escapeHtml(row.id)}" value="${escapeHtml(row.precis || '')}" placeholder="Short label"></td>
+          <td class="py-3 px-3"><textarea rows="2" aria-label="Pr&#233;cis" class="precis w-full text-sm border border-[#d9dfd8] rounded-md p-2 focus:outline-none focus:border-[#1f6f50]" data-precis-id="${escapeHtml(row.id)}" placeholder="Short label">${escapeHtml(row.precis || '')}</textarea></td>
           <td class="py-3 px-3 text-sm leading-relaxed">${escapeHtml(row.assertion)}</td>
           <td class="py-3 px-3">
             <div class="flex items-center justify-between gap-2 mb-1.5">
@@ -258,11 +282,25 @@ PAGE = r"""<!doctype html>
           </td>
         </tr>`;
       }).join('');
+      resizePrecisFields();
       const included = rows.filter(row => row.include === 'TRUE').length;
       const newCount = newRowIds.size;
       const newText = newCount ? ` ${newCount} new since last refresh.` : '';
       setStatus(`${included} of ${rows.length} included. Showing ${filtered.length}.${newText} ${dirty ? 'Unsaved changes.' : 'Saved.'}`);
     }
+
+    function resizePrecisField(field) {
+      field.style.height = 'auto';
+      field.style.height = `${field.scrollHeight + field.offsetHeight - field.clientHeight}px`;
+    }
+
+    function resizePrecisFields() {
+      rowsEl.querySelectorAll('textarea[data-precis-id]').forEach(resizePrecisField);
+    }
+
+    window.addEventListener('resize', resizePrecisFields);
+    document.fonts.ready.then(resizePrecisFields);
+    new ResizeObserver(resizePrecisFields).observe(document.querySelector('.assertions-table'));
 
     function rowKey(row) {
       return String(row.id || `${row.section}|${row.assertion}`);
@@ -351,10 +389,11 @@ PAGE = r"""<!doctype html>
       document.getElementById('save').disabled = false;
       if (!response.ok) {
         setStatus('Save failed. Check the terminal for details.');
-        return;
+        return false;
       }
       dirty = false;
       render();
+      return true;
     }
 
     rowsEl.addEventListener('change', event => {
@@ -374,11 +413,12 @@ PAGE = r"""<!doctype html>
     });
 
     rowsEl.addEventListener('input', event => {
-      const precisInput = event.target.closest('input[data-precis-id]');
+      const precisInput = event.target.closest('textarea[data-precis-id]');
       if (precisInput) {
         const row = rows.find(item => item.id === precisInput.dataset.precisId);
         if (!row) return;
         row.precis = precisInput.value;
+        resizePrecisField(precisInput);
         dirty = true;
         setStatus('Unsaved changes.');
         return;
@@ -465,6 +505,21 @@ PAGE = r"""<!doctype html>
     });
 
     document.getElementById('save').addEventListener('click', saveRows);
+    document.getElementById('closeEditor').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        if (dirty && !await saveRows()) return;
+        const response = await fetch('/api/shutdown', {method: 'POST'});
+        if (!response.ok) throw new Error('Could not stop the editor.');
+        document.querySelector('main').innerHTML = '<p>Editor closed. You can close this browser tab.</p>';
+        document.querySelectorAll('button, input, select, textarea').forEach(control => control.disabled = true);
+      } catch (error) {
+        setStatus(error.message);
+      } finally {
+        if (!document.querySelector('main').textContent.includes('Editor closed.')) button.disabled = false;
+      }
+    });
     document.getElementById('copyTsv').addEventListener('click', copyVisibleTsv);
     document.getElementById('includeAll').addEventListener('click', () => {
       const ids = new Set(visibleRows().map(row => row.id));
@@ -981,6 +1036,13 @@ def create_handler(csv_path: Path) -> type[BaseHTTPRequestHandler]:
                 self.save_assertions()
             elif path == "/api/markdown/file":
                 self.save_markdown()
+            elif path == "/api/shutdown":
+                origin = self.headers.get("Origin")
+                if origin and origin != f"http://{self.headers.get('Host')}":
+                    self.respond(403, b"Origin not allowed", "text/plain; charset=utf-8")
+                    return
+                self.respond(200, b"Editor closed", "text/plain; charset=utf-8")
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
             else:
                 self.respond(404, b"Not found", "text/plain; charset=utf-8")
             return

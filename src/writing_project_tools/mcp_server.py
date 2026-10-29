@@ -21,6 +21,7 @@ from writing_project_tools.assertions_editor import (
     resolve_markdown_path,
     write_assertions,
 )
+from writing_project_tools.editable_table import generate_table
 from writing_project_tools.create_docs import generate_docs
 from writing_project_tools.llm_context import build_llm_context, export_llm_context
 from writing_project_tools.migration import migrate_project
@@ -309,6 +310,7 @@ def get_workflow_summary() -> dict[str, Any]:
             "read_docx_sources",
             "write_docx_sources",
             "generate_writing_docs",
+            "generate_editable_table",
             "get_project_editor_status",
             "stop_project_editor",
         ],
@@ -325,6 +327,31 @@ def scaffold_article_project(project_dir: str, force: bool = False) -> dict[str,
 def migrate_writing_project(project_dir: str) -> dict[str, Any]:
     """Consolidate legacy Markdown and assertions into the current project format, with backups."""
     return migrate_project(project_path(project_dir))
+
+
+@mcp.tool()
+def generate_editable_table(
+    project_dir: str,
+    title: str,
+    columns: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+    sources: list[dict[str, Any]] | None = None,
+    output: str = "outputs/editable-table.html",
+    description: str = "",
+    evidence_note: str = "",
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Create a local editable HTML/JSON table with configurable fields and source extracts.
+
+    Columns use key, label, type (text/select/number/date), optional width, default,
+    role, and select options. Rows use id, values keyed by column key, sourceIds,
+    and sourceNotes. Sources use id, title, date, reference, excerpt, or a
+    project-relative path with inclusive one-based lineStart/lineEnd.
+    Outputs and project data stay in project_dir; existing files require
+    overwrite=True and receive timestamped backups.
+    """
+    return generate_table(project_path(project_dir), title, columns, rows, sources,
+                          output, description, evidence_note, overwrite)
 
 
 @mcp.tool()
