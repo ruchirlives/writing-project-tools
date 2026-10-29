@@ -75,7 +75,7 @@ def build_llm_context(
         "",
         "- Follow the toolkit instructions as the base workflow.",
         "- If project instructions are present, apply them as project-specific guidance.",
-        "- Treat source material in context.md as the evidence base.",
+        "- Treat source material in sources/context.md and other files in sources/ as the evidence base.",
         "- Do not treat the article plan as original evidence.",
         "- Use simple Word-output-friendly Markdown: `#`, `##`, `###`, `-` bullets, and `1.`, `2.`, `3.` numbered lists.",
         "",

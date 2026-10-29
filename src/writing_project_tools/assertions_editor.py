@@ -176,14 +176,7 @@ PAGE = r"""<!doctype html>
       </div>
       <div>
         <label for="newStatus" class="block text-xs font-bold text-[#2d3932] uppercase mb-1">Status</label>
-        <select id="newStatus" class="w-full px-3 py-2 text-sm border border-[#d9dfd8] bg-white rounded-md focus:outline-none focus:border-[#1f6f50]">
-          <option value="planned">planned</option>
-          <option value="interpretation">interpretation</option>
-          <option value="verify" selected>verify</option>
-          <option value="verified">verified</option>
-          <option value="draft_phrase">draft_phrase</option>
-          <option value="removed">removed</option>
-        </select>
+        <input id="newStatus" type="text" value="draft_phrase" readonly class="w-full px-3 py-2 text-sm border border-[#d9dfd8] rounded-md bg-gray-50">
       </div>
       <div class="flex justify-end gap-2.5 pt-2 border-t border-[#d9dfd8]/50">
         <button type="button" onclick="document.getElementById('addModal').close()" class="px-4 py-2 text-sm font-semibold border border-[#d9dfd8] bg-white rounded-lg hover:bg-gray-50 transition cursor-pointer">Cancel</button>
@@ -257,7 +250,7 @@ PAGE = r"""<!doctype html>
         }
         
         const statusOptions = ['planned', 'interpretation', 'verify', 'verified', 'draft_phrase', 'removed'];
-        const currentStatus = row.status || 'verify';
+        const currentStatus = row.status || 'draft_phrase';
         const options = statusOptions.map(status =>
           `<option value="${escapeHtml(status)}" ${status === currentStatus ? 'selected' : ''}>${escapeHtml(status)}</option>`
         ).join('');
@@ -278,6 +271,7 @@ PAGE = r"""<!doctype html>
           <td class="py-3 px-3 align-middle"><select class="${statusClass}" data-status-id="${escapeHtml(row.id)}">${options}</select></td>
           <td class="py-3 px-3 text-sm text-[#5d6a63] leading-relaxed">${escapeHtml(row.evidence_or_check)}</td>
           <td class="py-3 px-3 align-middle text-center">
+            <button class="verify-btn text-xs font-semibold text-[#1f6f50] bg-[#e4f1eb] hover:bg-[#d5ebd1] border border-[#1f6f50] rounded-lg px-2.5 py-1.5 transition cursor-pointer mb-1" type="button" data-verify-id="${escapeHtml(row.id)}" ${row.status === 'verified' ? 'disabled' : ''}>${row.status === 'verified' ? 'Verified' : 'Verify'}</button>
             <button class="remove-btn text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 hover:border-red-300 rounded-lg px-2.5 py-1.5 transition cursor-pointer" type="button" data-remove-id="${escapeHtml(row.id)}">Delete</button>
           </td>
         </tr>`;
@@ -434,6 +428,15 @@ PAGE = r"""<!doctype html>
     });
 
     rowsEl.addEventListener('click', event => {
+      const verifyBtn = event.target.closest('button[data-verify-id]');
+      if (verifyBtn) {
+        const row = rows.find(item => item.id === verifyBtn.dataset.verifyId);
+        if (!row) return;
+        row.status = 'verified';
+        dirty = true;
+        render();
+        return;
+      }
       const button = event.target.closest('button[data-copy-id]');
       if (button) {
         const row = rows.find(item => item.id === button.dataset.copyId);
@@ -465,7 +468,7 @@ PAGE = r"""<!doctype html>
       document.getElementById('newPrecis').value = '';
       document.getElementById('newAssertion').value = '';
       document.getElementById('newEvidence').value = '';
-      document.getElementById('newStatus').value = 'verify';
+      document.getElementById('newStatus').value = 'draft_phrase';
       document.getElementById('addModal').showModal();
     });
 
@@ -476,7 +479,7 @@ PAGE = r"""<!doctype html>
       const newPrecis = document.getElementById('newPrecis').value.trim();
       const newAssertion = document.getElementById('newAssertion').value.trim();
       const newEvidence = document.getElementById('newEvidence').value.trim();
-      const newStatus = document.getElementById('newStatus').value;
+      const newStatus = 'draft_phrase';
 
       if (!newId || !newSection || !newAssertion) return;
 

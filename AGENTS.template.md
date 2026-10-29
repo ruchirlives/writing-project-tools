@@ -6,7 +6,7 @@ Always operate on the user-specified project folder. Pass that folder explicitly
 
 ## Core Operating Rules
 
-- Treat context.md and files in sources/ as the evidence base. Do not treat the project plan as the original evidence.
+- Treat sources/context.md and other files in sources/ as the evidence base. Do not treat the project plan as the original evidence.
 - Check relevant source files before changing the plan or draft files (named after the project folder, e.g., `peatland-action-plan.md`).
 - Preserve existing files unless the user explicitly asks to overwrite or replace them.
 - Keep claims traceable to source material, interpretation, draft phrasing, or verification needs.
@@ -26,6 +26,7 @@ Use these `writing-project-tools` MCP helpers when available:
 - `get_workflow_summary()` returns a concise structured summary of files, assertion rules, workflow steps, and core helpers.
 - `scaffold_article_project(project_dir, force=False)` creates missing standard project files without overwriting by default.
 - `migrate_writing_project(project_dir)` consolidates legacy Markdown and CSV files, moves input files into `sources/` and deliverables into `outputs/`, removes the project `.gitignore`, and backs up changed source files.
+- `archive_writing_project(project_dir)` zips `sources/`, removes working Markdown and Word config, and keeps `assertions.xlsx` and `outputs/`.
 - `list_project_sources(project_dir)` lists input files in `sources/`.
 - `list_project_markdown(project_dir)` lists Markdown files in the project folder.
 - `read_writing_context(project_dir)` reads the standard writing-project Markdown files that exist.
@@ -37,6 +38,8 @@ Use these `writing-project-tools` MCP helpers when available:
 - `export_paste_ready_llm_context(project_dir, output="llm-context.md", task="draft")` writes that context bundle into the project folder.
 - `read_project_assertions(project_dir, csv_name="assertions.xlsx")` reads assertions.
 - `write_project_assertions(project_dir, rows, csv_name="assertions.xlsx")` writes assertions.
+- `update_project_assertions(project_dir, rows)` upserts by `id`, preserves verified rows, and marks new rows `draft_phrase`.
+- `reset_project_assertions(project_dir)` clears all rows and leaves a blank assertions workbook.
 - `read_docx_sources(project_dir, csv_name="docx_sources.csv")` reads Word generation config.
 - `write_docx_sources(project_dir, rows, csv_name="docx_sources.csv")` writes Word generation config.
 - `generate_writing_docs(project_dir, config="docx_sources.csv")` generates Word documents.
@@ -57,10 +60,10 @@ edit-assertions --workbook "C:\path\to\project\assertions.xlsx"
 
 Recommended files (plan and draft are named after the project folder):
 
-- `context.md` for source material, evidence, notes, research, and initial ideas.
+- `sources/context.md` for source material, evidence, notes, research, and initial ideas.
 - `sources/` for supplied input files such as PDFs, exported emails, and other reference material.
 - `drafting-instructions.md` for the editorial brief, audience, format, tone, and drafting requirements.
-- `considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
+- `sources/considerations.md` for authorial stance, reviewer priorities, risks, constraints, and things to avoid.
 - `{folder-slug}-plan.md` describing purpose, audience, outputs, considerations, proposed structure, and questions for further input.
 - `{folder-slug}-draft.md` for the draft created from the reviewed plan.
 - `assertions.xlsx` in the project root for the editable assertions list.
@@ -132,10 +135,10 @@ Column guidance:
 - `precis`: brief shorthand for locating the claim in the list; not wording for the draft.
 - `assertion`: actual source or planned wording intended for use, not a paraphrased summary.
 - `user_edit`: optional revised wording; leave blank when not needed.
-- `status`: one of `verify`, `verified`, or `draft_phrase`.
+- `status`: new assertions start as `draft_phrase`; mark a reviewed assertion `verified` when its wording and evidence are approved.
 - `evidence_or_check`: specific evidence pointer or, for an unverified claim, the verification task.
 
-Use `read_writing_context(project_dir)` before generating assertions. Save generated rows with `write_project_assertions(project_dir, rows)`.
+Use `read_writing_context(project_dir)` before generating assertions. Save new or revised rows with `update_project_assertions(project_dir, rows)` so verified items remain unchanged. Use `reset_project_assertions(project_dir)` only when the user wants to start with an empty list.
 
 ## Evidence Discipline
 

@@ -86,10 +86,11 @@ class MigrationTests(unittest.TestCase):
                 "*.docx\n",
             )
             self.assertFalse((root / "peatland-action-outline.md").exists())
-            self.assertIn("Existing context", (root / "context.md").read_text(encoding="utf-8"))
-            self.assertIn("Evidence A", (root / "context.md").read_text(encoding="utf-8"))
+            self.assertFalse((root / "context.md").exists())
+            self.assertIn("Existing context", (root / "sources" / "context.md").read_text(encoding="utf-8"))
+            self.assertIn("Evidence A", (root / "sources" / "context.md").read_text(encoding="utf-8"))
             self.assertIn("Audience A", (root / "drafting-instructions.md").read_text(encoding="utf-8"))
-            self.assertIn("Reviewer A", (root / "considerations.md").read_text(encoding="utf-8"))
+            self.assertIn("Reviewer A", (root / "sources" / "considerations.md").read_text(encoding="utf-8"))
             self.assertIn("Main point A", (root / "peatland-action-plan.md").read_text(encoding="utf-8"))
             row = read_assertions(root / "assertions.xlsx")[0]
             self.assertEqual(row["precis"], "")
@@ -119,7 +120,29 @@ class MigrationTests(unittest.TestCase):
             self.assertFalse(second["archived_legacy_files"])
             self.assertFalse(second["moved_deliverables"])
             self.assertFalse(second["moved_sources"])
-            self.assertEqual((root / "context.md").read_text(encoding="utf-8").count("Evidence A"), 1)
+            self.assertEqual((root / "sources" / "context.md").read_text(encoding="utf-8").count("Evidence A"), 1)
+
+    def test_existing_source_context_and_root_context_are_both_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "sources").mkdir()
+            (root / "sources" / "context.md").write_text("# Context\n\nExisting source content\n", encoding="utf-8")
+            (root / "context.md").write_text("# Context\n\nRoot content\n", encoding="utf-8")
+            (root / "considerations.md").write_text("# Considerations\n\nRisk A\n", encoding="utf-8")
+            (root / "README.md").write_text("Read `context.md` and `sources/considerations.md`; export llm-context.md.\n", encoding="utf-8")
+
+            migrate_project(root)
+
+            content = (root / "sources" / "context.md").read_text(encoding="utf-8")
+            self.assertIn("Existing source content", content)
+            self.assertIn("Root content", content)
+            self.assertEqual((root / "sources" / "considerations.md").read_text(encoding="utf-8"), "# Considerations\n\nRisk A\n")
+            self.assertTrue((root / ".writing-project-migration-backup" / "context.md").exists())
+            self.assertFalse((root / "context.md").exists())
+            self.assertEqual(
+                (root / "README.md").read_text(encoding="utf-8"),
+                "Read `sources/context.md` and `sources/considerations.md`; export llm-context.md.\n",
+            )
 
     def test_collision_does_not_modify_project(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

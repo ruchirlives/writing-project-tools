@@ -29,7 +29,7 @@ From inside a new empty article folder, run:
 scaffold-writing-project
 ```
 
-This creates `context.md`, `drafting-instructions.md`, and `considerations.md`, plus project-named plan and draft Markdown files, `docx_sources.csv`, `README.md`, a `sources/` folder for input files, a root-level `assertions.xlsx` workbook, and an `outputs/` folder for deliverables. The plan includes the proposed structure.
+This creates `sources/context.md` and `sources/considerations.md` alongside other input files in `sources/`, plus `drafting-instructions.md`, project-named plan and draft Markdown files, `docx_sources.csv`, `README.md`, a root-level `assertions.xlsx` workbook, and an `outputs/` folder for deliverables. The plan includes the proposed structure.
 
 `drafting-instructions.md` starts with rules to spell out Scottish Wildlife Trust, support every assertion with evidence, and keep intended wording in `assertion` while using `precis` as a short navigation label.
 
@@ -41,7 +41,9 @@ scaffold-writing-project C:\path\to\NewArticle
 
 Use `--force` only when you intentionally want to overwrite scaffold files.
 
-To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It consolidates legacy Markdown, moves `outputs/assertions.xlsx` to root-level `assertions.xlsx` without rewriting the workbook, or converts legacy assertions CSV files to that root-level workbook, moves root-level PDFs and exported emails and files in legacy `input/`, `inputs/`, or `source/` folders into `sources/`, moves existing deliverables from the project root or `docs/` into `outputs/`, updates legacy Word output paths, and removes the project `.gitignore`. Originals of changed source files are kept in `.writing-project-migration-backup/`. It also updates old assertions workbook paths in project README and instruction files. The migration checks for destination collisions before moving files and can be run again without duplicating content.
+To upgrade an existing project through MCP, call `migrate_writing_project(project_dir)`. It consolidates legacy Markdown, moves root-level `context.md` and `considerations.md` into `sources/`, moves `outputs/assertions.xlsx` to root-level `assertions.xlsx` without rewriting the workbook, or converts legacy assertions CSV files to that root-level workbook, moves root-level PDFs and exported emails and files in legacy `input/`, `inputs/`, or `source/` folders into `sources/`, moves existing deliverables from the project root or `docs/` into `outputs/`, updates legacy Word output paths, and removes the project `.gitignore`. Originals of changed source files are kept in `.writing-project-migration-backup/`. It also updates old assertions and source Markdown paths in project README and instruction files. The migration checks for destination collisions before moving files and can be run again without duplicating content.
+
+To archive a completed project through MCP, call `archive_writing_project(project_dir)`. It creates and validates `sources.zip`, removes the original `sources/` folder and root-level working Markdown and `docx_sources.csv`, and keeps `assertions.xlsx` and `outputs/`. Any unrelated files are left in place and listed in the result. If `sources.zip` already exists while `sources/` is present, the action stops before changing files.
 
 ## Generate Word Documents
 
@@ -117,7 +119,9 @@ The editor opens the assertions review page at:
 http://127.0.0.1:8765/
 ```
 
-Tick or untick assertions, optionally add revised wording in `user_edit`, and click `Save workbook`.
+Tick or untick assertions, optionally add revised wording in `user_edit`, or use **Verify** on a row, then click `Save workbook`. New rows start with `draft_phrase` status.
+
+The MCP server also provides `update_project_assertions(project_dir, rows)` to upsert by stable `id`. It preserves verified rows exactly and marks new rows `draft_phrase`. Use `reset_project_assertions(project_dir)` to clear all assertion rows while keeping a blank workbook.
 
 The same server also includes a Markdown editor:
 
@@ -139,6 +143,7 @@ The server exposes tools for working against any project folder by path:
 
 - `scaffold_article_project`
 - `migrate_writing_project`
+- `archive_writing_project`
 - `generate_writing_docs`
 - `generate_editable_table`
 - `get_writing_project_instructions`
@@ -157,6 +162,8 @@ The server exposes tools for working against any project folder by path:
 - `write_docx_sources`
 - `read_project_assertions`
 - `write_project_assertions`
+- `update_project_assertions`
+- `reset_project_assertions`
 - `start_project_editor`
 - `get_project_editor_status`
 - `stop_project_editor`

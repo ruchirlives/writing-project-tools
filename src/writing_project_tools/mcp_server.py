@@ -23,6 +23,7 @@ from writing_project_tools.assertions_editor import (
 )
 from writing_project_tools.editable_table import generate_table
 from writing_project_tools.create_docs import generate_docs
+from writing_project_tools.archive import archive_project
 from writing_project_tools.llm_context import build_llm_context, export_llm_context
 from writing_project_tools.migration import migrate_project
 from writing_project_tools.scaffold import scaffold, get_standard_context_files, folder_name_to_slug
@@ -247,9 +248,9 @@ def get_workflow_summary() -> dict[str, Any]:
     return {
         "standard_files_note": "File names are based on the project folder name (e.g., 'Peatland Action' -> 'peatland-action-plan.md')",
         "common_files": [
-            "context.md",
+            "sources/context.md",
             "drafting-instructions.md",
-            "considerations.md",
+            "sources/considerations.md",
             "{folder-slug}-plan.md",
             "{folder-slug}-draft.md",
         ],
@@ -257,6 +258,7 @@ def get_workflow_summary() -> dict[str, Any]:
         "assertions_workbook": {
             "required_columns": FIELDNAMES,
             "status_values": ["planned", "interpretation", "verify", "verified", "draft_phrase"],
+            "new_assertion_status": "draft_phrase",
             "guidance": (
                 "Track content-related assertions only. Put a short navigation label in precis and "
                 "preserve the actual wording to be used in assertion. Record evidence for "
@@ -268,8 +270,8 @@ def get_workflow_summary() -> dict[str, Any]:
             "Gather source notes and context.",
             "Identify audience, editorial format, and authorial stance.",
             "Create {folder-slug}-plan.md.",
-            "Extract planned assertions into assertions.xlsx.",
-            "Review assertions through the editor.",
+            "Extract planned assertions into assertions.xlsx with draft_phrase status.",
+            "Review assertions through the editor; verified rows stay unchanged during updates.",
             "Revise the plan from reviewed assertions.",
             "Create {folder-slug}-draft.md from the reviewed plan.",
             "Create requested deliverables in outputs/; use docx_sources.csv for Word documents.",
@@ -301,11 +303,14 @@ def get_workflow_summary() -> dict[str, Any]:
         "helpers": [
             "get_project_instructions",
             "migrate_writing_project",
+            "archive_writing_project",
             "read_writing_context",
             "list_project_sources",
             "prepare_project_refresh",
             "apply_project_refresh",
             "write_project_assertions",
+            "update_project_assertions",
+            "reset_project_assertions",
             "start_project_editor",
             "read_docx_sources",
             "write_docx_sources",
@@ -327,6 +332,12 @@ def scaffold_article_project(project_dir: str, force: bool = False) -> dict[str,
 def migrate_writing_project(project_dir: str) -> dict[str, Any]:
     """Consolidate legacy Markdown and assertions into the current project format, with backups."""
     return migrate_project(project_path(project_dir))
+
+
+@mcp.tool()
+def archive_writing_project(project_dir: str) -> dict[str, Any]:
+    """Zip sources and remove working Markdown and Word config, keeping assertions and outputs."""
+    return archive_project(project_path(project_dir))
 
 
 @mcp.tool()
@@ -525,7 +536,7 @@ def prepare_draft_inputs(project_dir: str) -> dict[str, Any]:
         "file_names": file_names,
         "recommended_next_steps": [
             f"Use the proposed structure in {file_names['plan']} for drafting.",
-            "Use context.md and files in sources/ as the evidence base and follow drafting-instructions.md.",
+            "Use sources/context.md and other files in sources/ as the evidence base and follow drafting-instructions.md.",
             "Respect assertions.xlsx include flags and user_edit wording when present.",
             "Use precis only to navigate the list; use assertion or user_edit as the claim wording.",
             f"Save the draft with write_project_markdown(project_dir, '{file_names['draft']}', content).",
@@ -579,11 +590,71 @@ def write_project_assertions(
     rows: list[dict[str, Any]],
     csv_name: str = "assertions.xlsx",
 ) -> dict[str, Any]:
-    """Write rows to the assertions workbook for a writing project."""
+    """Replace the assertions workbook; use update_project_assertions to preserve reviewed rows."""
     csv_path = project_path(project_dir) / csv_name
     csv_path.parent.mkdir(parents=True, exist_ok=True)
-    write_assertions(csv_path, rows)
+    existing_ids = {row["id"] for row in read_assertions(csv_path)} if csv_path.exists() else set()
+    write_assertions(csv_path, [
+        {**row, "status": "draft_phrase"} if str(row.get("id", "")) not in existing_ids else row
+        for row in rows
+    ])
     return {"path": str(csv_path), "rows": len(rows), "saved": True}
+
+
+@mcp.tool()
+def reset_project_assertions(project_dir: str) -> dict[str, Any]:
+    """Clear every assertion row and leave a blank assertions workbook."""
+    path = project_path(project_dir) / "assertions.xlsx"
+    removed = len(read_assertions(path)) if path.exists() else 0
+    write_assertions(path, [])
+    return {"path": str(path), "removed": removed, "saved": True}
+
+
+@mcp.tool()
+def update_project_assertions(project_dir: str, rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Upsert assertions by id without changing any verified row."""
+    path = project_path(project_dir) / "assertions.xlsx"
+    existing = read_assertions(path) if path.exists() else []
+    updated_rows, counts = upsert_assertion_rows(existing, rows)
+    write_assertions(path, updated_rows)
+    return {"path": str(path), "saved": True, "rows": len(updated_rows), **counts}
+
+
+def upsert_assertion_rows(
+    existing_rows: list[dict[str, str]], incoming_rows: list[dict[str, Any]]
+) -> tuple[list[dict[str, str]], dict[str, int]]:
+    """Merge only supplied fields, retaining order and verified rows."""
+    result = [row.copy() for row in existing_rows]
+    by_id = {row["id"]: index for index, row in enumerate(result) if row.get("id")}
+    seen: set[str] = set()
+    counts = {"added": 0, "updated": 0, "verified_unchanged": 0}
+    for incoming in incoming_rows:
+        row_id = str(incoming.get("id", "")).strip()
+        if not row_id:
+            raise ValueError("Every assertion needs a non-empty id")
+        if row_id in seen:
+            raise ValueError(f"Duplicate incoming assertion id: {row_id}")
+        seen.add(row_id)
+        if row_id in by_id:
+            current = result[by_id[row_id]]
+            if current.get("status", "").lower() == "verified":
+                counts["verified_unchanged"] += 1
+                continue
+            for field in FIELDNAMES:
+                if field in incoming and field != "id":
+                    current[field] = str(incoming[field] or "")
+            counts["updated"] += 1
+        else:
+            if not str(incoming.get("assertion", "")).strip():
+                raise ValueError(f"New assertion {row_id} needs assertion wording")
+            row = {field: str(incoming.get(field, "") or "") for field in FIELDNAMES}
+            row["id"] = row_id
+            row["include"] = row["include"] or "TRUE"
+            row["status"] = "draft_phrase"
+            by_id[row_id] = len(result)
+            result.append(row)
+            counts["added"] += 1
+    return result, counts
 
 
 def assertion_changed(existing: dict[str, str], incoming: dict[str, Any]) -> bool:
@@ -612,14 +683,17 @@ def merge_assertion_review_state(
         incoming_ids.add(row_id)
         existing = existing_by_id.get(row_id)
         if existing and preserve_existing:
+            if existing.get("status", "").lower() == "verified":
+                merged.append({field: str(existing.get(field, "")) for field in FIELDNAMES})
+                continue
             row["include"] = existing.get("include", row["include"])
             row["user_edit"] = existing.get("user_edit", row["user_edit"])
             if assertion_changed(existing, incoming):
                 row["status"] = "verify"
             else:
                 row["status"] = existing.get("status", row["status"])
-        elif not row["status"]:
-            row["status"] = "verify"
+        elif not existing:
+            row["status"] = "draft_phrase"
         if not row["include"]:
             row["include"] = "TRUE"
         merged.append(row)
@@ -630,6 +704,9 @@ def merge_assertion_review_state(
             if row_id and row_id in incoming_ids:
                 continue
             removed = {field: str(existing.get(field, "")) for field in FIELDNAMES}
+            if removed["status"].lower() == "verified":
+                merged.append(removed)
+                continue
             removed["include"] = "FALSE"
             removed["status"] = "removed"
             merged.append(removed)
@@ -669,7 +746,7 @@ def prepare_project_refresh(project_dir: str) -> dict[str, Any]:
             "Track content-related assertions only; exclude workflow, formatting, setup, and drafting-process notes.",
             "Preserve reviewed assertion IDs when the claim is substantively the same.",
             "Use new assertion IDs only for genuinely new claims.",
-            "When applying the refresh, matching assertion IDs preserve include flags and user_edit wording.",
+            "When applying the refresh, verified assertions remain unchanged; other matching IDs preserve include flags and user_edit wording.",
         ],
         "recommended_next_tool": "apply_project_refresh",
     }

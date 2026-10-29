@@ -10,6 +10,9 @@ from writing_project_tools.mcp_server import (
     editor_command,
     launch_editor_process,
     read_project_assertions,
+    reset_project_assertions,
+    update_project_assertions,
+    upsert_assertion_rows,
     write_project_assertions,
     prepare_draft_inputs,
     prepare_project_refresh,
@@ -23,11 +26,59 @@ from writing_project_tools.llm_context import build_llm_context
 
 
 class RootAssertionsTests(unittest.TestCase):
+    def test_update_upserts_and_keeps_verified_rows_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            verified = {"include": "FALSE", "id": "A1", "section": "Intro", "precis": "Reviewed", "assertion": "Approved wording", "user_edit": "Final edit", "status": "verified", "evidence_or_check": "Source A"}
+            draft = {"include": "TRUE", "id": "A2", "section": "Main", "precis": "Old", "assertion": "Old wording", "user_edit": "", "status": "draft_phrase", "evidence_or_check": "Source B"}
+            write_assertions(root / "assertions.xlsx", [verified, draft])
+
+            result = update_project_assertions(str(root), [
+                {"id": "A1", "assertion": "Attempted replacement", "status": "draft_phrase"},
+                {"id": "A2", "precis": "Updated", "assertion": "New wording"},
+                {"id": "A3", "section": "End", "assertion": "New claim", "status": "verified"},
+            ])
+            rows = read_project_assertions(str(root))["rows"]
+
+            self.assertEqual(result["verified_unchanged"], 1)
+            self.assertEqual(result["updated"], 1)
+            self.assertEqual(result["added"], 1)
+            self.assertEqual(rows[0], verified)
+            self.assertEqual(rows[1]["precis"], "Updated")
+            self.assertEqual(rows[1]["assertion"], "New wording")
+            self.assertEqual(rows[1]["evidence_or_check"], "Source B")
+            self.assertEqual(rows[2]["status"], "draft_phrase")
+            self.assertEqual(rows[2]["include"], "TRUE")
+
+    def test_reset_leaves_blank_workbook(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            write_assertions(root / "assertions.xlsx", [{"id": "A1", "status": "verified"}])
+
+            result = reset_project_assertions(str(root))
+
+            self.assertEqual(result["removed"], 1)
+            self.assertEqual(read_assertions(root / "assertions.xlsx"), [])
+            self.assertTrue((root / "assertions.xlsx").is_file())
+
+    def test_upsert_rejects_duplicate_ids_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            with self.assertRaises(ValueError):
+                update_project_assertions(str(root), [{"id": "A1"}, {"id": "A1"}])
+            self.assertFalse((root / "assertions.xlsx").exists())
+
+    def test_write_marks_new_rows_draft_phrase(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            write_project_assertions(str(root), [{"id": "A1", "status": "verified"}])
+            self.assertEqual(read_assertions(root / "assertions.xlsx")[0]["status"], "draft_phrase")
+
     def test_default_helpers_share_root_register_and_preserve_review(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
             row = {"include": "FALSE", "id": "ROOT-1", "section": "Intro", "precis": "Label", "assertion": "Exact document wording.", "user_edit": "Reviewed final wording.", "status": "verified", "evidence_or_check": "Source A"}
-            write_project_assertions(str(root), [row])
+            write_assertions(root / "assertions.xlsx", [row])
             self.assertTrue((root / "assertions.xlsx").is_file())
             self.assertEqual(read_project_assertions(str(root))["rows"], [row])
             self.assertEqual(prepare_draft_inputs(str(root))["assertions"]["rows"], [row])
@@ -104,9 +155,19 @@ class AssertionMergeTests(unittest.TestCase):
 
         merged = merge_assertion_review_state(existing, incoming)
 
-        self.assertEqual(merged[0]["precis"], "Better label")
+        self.assertEqual(merged[0]["precis"], "Old label")
         self.assertEqual(merged[0]["assertion"], "Full intended wording.")
         self.assertEqual(merged[0]["status"], "verified")
+
+    def test_refresh_keeps_verified_row_when_missing(self) -> None:
+        existing = [{"include": "TRUE", "id": "A1", "status": "verified", "assertion": "Approved"}]
+        merged = merge_assertion_review_state(existing, [])
+        self.assertEqual(merged[0]["status"], "verified")
+        self.assertEqual(merged[0]["assertion"], "Approved")
+
+    def test_refresh_marks_new_row_draft_phrase(self) -> None:
+        merged = merge_assertion_review_state([], [{"id": "A2", "assertion": "New", "status": "verified"}])
+        self.assertEqual(merged[0]["status"], "draft_phrase")
 
     def test_workbook_roundtrip_preserves_precis_and_wording(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
